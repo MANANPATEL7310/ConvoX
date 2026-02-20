@@ -1,66 +1,45 @@
 import dotenv from "dotenv";
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config({ path: "./.env" });
-}
+dotenv.config({ override: true });
 
 import express from "express";
-import mongoose from "mongoose";
 import { createServer } from "node:http";
-import { connectToSocket } from "./controllers/socketManager.js";
-// import bodyParser from "body-parser"; (
-//! we do not need this as express has built-in body parser now. so for that we use the express.json() and express.urlencoded() methods)
+import mongoose from "mongoose";
+import { connectToSocket, startRedis } from "./controllers/socketManager.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import authRoutes from "./routes/auth.routes.js";
 
 
 const app = express();
-const server=createServer(app);
-const io=connectToSocket(server);
-const MONGO_URL = process.env.MONGO_URL;
+const server = createServer(app);
+const io = connectToSocket(server);
 
-
-async function main() {
-  await mongoose.connect(MONGO_URL);
-};
-
-main()
-  .then(() => {
-    console.log("Database connected successfully");
-  })
-  .catch((err) => {
-    console.log(err);
-  });
-
-
-const allowedOrigins = `${process.env.FRONTEND_URL}`;
+app.set("port", (process.env.PORT || 8000))
 
 app.use(cors({
-  origin:allowedOrigins,
-  credentials:true
+    origin: ["http://localhost:5173", "http://localhost:5174"], // Vite defaults
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
 }));
-// app.use(bodyParser.json());
-app.use(express.json({limit:"40kb"}));
-// app.use(express.urlencoded({limit:"40kb",extendeed:true})); 
-//! (this also not needed when we use the react form. urlencoded only needed when we use the HTML form or EJS form which send the data in the form of the url encoded.)
+
+app.use(express.json({ limit: "40kb" }));
+app.use(express.urlencoded({ limit: "40kb", extended: true }));
 app.use(cookieParser());
 
+app.use("/api/v1/users", authRoutes);
 
-app.set("port",process.env.PORT || 8080);
-
-
-
-
-
-
-
-
-const start=async ()=>{
-
-  server.listen(app.get("port"),()=>{
-    console.log("app is listening now.")
-  })
+const start = async () => {
+    try {
+        const connectionDb = await mongoose.connect(process.env.MONGO_URL)
+        console.log("database connected successfully.");
+        
+        await startRedis();
+        server.listen(app.get("port"), () => {
+            console.log(`LISTENIN ON PORT ${app.get("port")}`)
+        });
+    } catch (e) {
+        console.log(e);
+    }
 }
 
 start();
-
-
