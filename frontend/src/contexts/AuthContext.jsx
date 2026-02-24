@@ -1,6 +1,5 @@
-/* eslint-disable no-useless-catch */
 import { useState, useEffect } from 'react';
-import api from './api/axios.js';
+import api from '../api/axios.js';
 import { AuthContext } from "./AuthContext";
 
 export const AuthProvider = ({ children }) => {

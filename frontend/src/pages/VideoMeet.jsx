@@ -126,7 +126,7 @@ export default function VideoMeetComponent() {
       console.error('Error getting display media:', error);
       throw error;
     }
-  }, [videoEnabled, audioEnabled, getLocalMedia]);
+  }, [getLocalMedia]);
 
   /* -------------------- PEER CONNECTION -------------------- */
 

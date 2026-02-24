@@ -12,7 +12,7 @@ const Login = ({ onSwitchToSignup }) => {
     setError('');
     try {
       await login(email, password);
-    } catch (err) {
+    } catch {
       setError('Login failed. Please check your credentials.');
     }
   };

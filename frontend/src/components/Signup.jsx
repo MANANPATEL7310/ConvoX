@@ -13,7 +13,7 @@ const Signup = ({ onSwitchToLogin }) => {
     setError('');
     try {
       await register(username, email, password);
-    } catch (err) {
+    } catch {
       setError('Registration failed. Please try again.');
     }
   };
