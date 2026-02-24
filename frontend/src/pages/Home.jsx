@@ -13,12 +13,40 @@ import ThemeToggle from '../components/ThemeToggle';
 import PageWrapper from '../components/PageWrapper';
 import { toast } from 'sonner';
 
-/* ─── Quick-action cards below the join form ─── */
+/* ─── Quick-action cards — each has its own accent palette for light + dark ─── */
 const QUICK_ACTIONS = [
-  { icon: Video,    label: 'New Meeting',  desc: 'Start instantly',   gradient: 'from-indigo-500 to-purple-600' },
-  { icon: Users,    label: 'Team Room',    desc: 'Invite your team',  gradient: 'from-emerald-500 to-teal-600'  },
-  { icon: Clock,    label: 'Schedule',     desc: 'Plan ahead',        gradient: 'from-orange-500 to-rose-500'   },
-  { icon: LinkIcon, label: 'Share Link',   desc: 'Copy & send',       gradient: 'from-blue-500 to-cyan-500'     },
+  {
+    icon: Video,    label: 'New Meeting', desc: 'Start instantly',
+    gradient: 'from-indigo-500 to-purple-600',
+    light: 'bg-indigo-50  border-indigo-200  hover:bg-indigo-100  hover:border-indigo-400',
+    dark:  'bg-indigo-500/10  border-indigo-500/25 hover:bg-indigo-500/20 hover:border-indigo-400/50',
+    titleLight: 'text-indigo-800',  titleDark: 'text-indigo-300',
+    descLight:  'text-indigo-500',  descDark:  'text-indigo-400/70',
+  },
+  {
+    icon: Users,    label: 'Team Room',  desc: 'Invite your team',
+    gradient: 'from-emerald-500 to-teal-600',
+    light: 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-400',
+    dark:  'bg-emerald-500/10 border-emerald-500/25 hover:bg-emerald-500/20 hover:border-emerald-400/50',
+    titleLight: 'text-emerald-800', titleDark: 'text-emerald-300',
+    descLight:  'text-emerald-600', descDark:  'text-emerald-400/70',
+  },
+  {
+    icon: Clock,    label: 'Schedule',   desc: 'Plan ahead',
+    gradient: 'from-orange-500 to-rose-500',
+    light: 'bg-orange-50  border-orange-200  hover:bg-orange-100  hover:border-orange-400',
+    dark:  'bg-orange-500/10  border-orange-500/25 hover:bg-orange-500/20 hover:border-orange-400/50',
+    titleLight: 'text-orange-800',  titleDark: 'text-orange-300',
+    descLight:  'text-orange-500',  descDark:  'text-orange-400/70',
+  },
+  {
+    icon: LinkIcon, label: 'Share Link', desc: 'Copy & send',
+    gradient: 'from-blue-500 to-cyan-500',
+    light: 'bg-blue-50    border-blue-200    hover:bg-blue-100    hover:border-blue-400',
+    dark:  'bg-blue-500/10    border-blue-500/25  hover:bg-blue-500/20  hover:border-blue-400/50',
+    titleLight: 'text-blue-800',    titleDark: 'text-blue-300',
+    descLight:  'text-blue-500',    descDark:  'text-blue-400/70',
+  },
 ];
 
 /* ─── Right-panel stats ─── */
@@ -47,7 +75,7 @@ export default function HomeComponent() {
     <PageWrapper>
 
       {/* ══════════ NAV ══════════ */}
-      <nav className={`backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
+      <nav className={`relative z-10 backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
         dark ? 'bg-gray-900/80 border-white/10' : 'bg-white/70 border-gray-200/60'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -89,7 +117,7 @@ export default function HomeComponent() {
       </nav>
 
       {/* ══════════ MAIN CONTENT ══════════ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 flex-1">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-8rem)]">
 
           {/* ─── LEFT COLUMN ─── */}
@@ -176,24 +204,16 @@ export default function HomeComponent() {
                       whileHover={{ y: -4, scale: 1.05 }}
                       whileTap={{ scale: 0.96 }}
                       transition={{ duration: 0.18 }}
-                      className={`flex flex-col items-center justify-start gap-3 p-4 rounded-xl border group transition-all min-h-[92px] ${
-                        dark
-                          ? 'bg-gray-800/50 border-white/10 hover:border-indigo-500/50 hover:bg-indigo-950/40'
-                          : 'bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/40 hover:shadow-md'
-                      }`}
+                      className={`flex flex-col items-center justify-start gap-3 p-4 rounded-xl border group transition-all min-h-[88px] ${dark ? a.dark : a.light}`}
                     >
-                      {/* Icon */}
+                      {/* Gradient icon badge */}
                       <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${a.gradient} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform flex-shrink-0`}>
                         <a.icon className="text-white" style={{ width: '1.1rem', height: '1.1rem' }} />
                       </div>
-                      {/* Text */}
+                      {/* Label + desc */}
                       <div className="flex flex-col items-center gap-0.5 w-full">
-                        <span className={`text-xs font-bold leading-tight text-center ${
-                          dark ? 'text-gray-100' : 'text-gray-800'
-                        }`}>{a.label}</span>
-                        <span className={`text-[10px] leading-tight text-center ${
-                          dark ? 'text-gray-500' : 'text-gray-400'
-                        }`}>{a.desc}</span>
+                        <span className={`text-xs font-bold leading-tight text-center ${dark ? a.titleDark : a.titleLight}`}>{a.label}</span>
+                        <span className={`text-[10px] leading-tight text-center ${dark ? a.descDark : a.descLight}`}>{a.desc}</span>
                       </div>
                     </motion.button>
                   ))}

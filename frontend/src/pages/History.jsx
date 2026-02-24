@@ -50,7 +50,7 @@ export default function History() {
     <PageWrapper>
 
       {/* ════════════ NAV ════════════ */}
-      <nav className={`backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
+      <nav className={`relative z-10 backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
         dark ? 'bg-gray-900/80 border-white/10' : 'bg-white/70 border-gray-200/60'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -80,7 +80,7 @@ export default function History() {
       </nav>
 
       {/* ════════════ MAIN ════════════ */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
 
         {meetings.length === 0 ? (
           /* ── Empty state ── */
