@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   Video, Shield, Zap, Users, Globe, Star,
   ArrowRight, Check, ChevronDown, Play, MonitorPlay,
@@ -268,7 +269,7 @@ function FeatureCard({ feature, index, dark }) {
    PAGE COMPONENT
 ═══════════════════════════════════════════════════════════ */
 export default function LandingPage() {
-  const [dark, setDark] = useState(false);
+  const { dark, toggle } = useTheme();
 
   const { scrollY } = useScroll();
   const navBg = useTransform(
@@ -276,10 +277,6 @@ export default function LandingPage() {
     [dark ? 'rgba(4,4,15,0)' : 'rgba(255,255,255,0)', dark ? 'rgba(4,4,15,0.96)' : 'rgba(255,255,255,0.96)'],
   );
   const navShadow = useTransform(scrollY, [0, 80], ['none', '0 2px 24px rgba(0,0,0,0.12)']);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
-  }, [dark]);
 
   return (
     <div className={`min-h-screen overflow-x-hidden font-sans transition-colors duration-300 ${t.pageBg(dark)}`}>
@@ -295,8 +292,8 @@ export default function LandingPage() {
             </motion.span>
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
-              {/* Contrast toggle — dark pill in light mode, light pill in dark mode */}
-              <ThemeToggle dark={dark} onToggle={() => setDark(d => !d)} />
+              {/* Contrast toggle — reads from and writes to centralized ThemeContext */}
+              <ThemeToggle dark={dark} onToggle={toggle} />
 
               <Link to="/auth">
                 <Button variant="ghost" className={`font-medium transition-colors ${t.navText(dark)}`}>Sign In</Button>
@@ -313,15 +310,26 @@ export default function LandingPage() {
 
       {/* ════════════ HERO (50/50) ════════════ */}
       <section className={`relative min-h-screen flex items-center overflow-hidden pt-16 ${t.heroBg(dark)}`}>
-        {/* blobs */}
+
+        {/* Animated blobs */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-400 rounded-full mix-blend-multiply opacity-10 blur-3xl animate-blob" />
         <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply opacity-10 blur-3xl animate-blob animation-delay-2000" />
         <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-pink-400 rounded-full mix-blend-multiply opacity-10 blur-3xl animate-blob animation-delay-4000" />
-        {/* grid overlay */}
-        <div className="absolute inset-0 opacity-[0.025]" style={{
-          backgroundImage: 'linear-gradient(to right,#6366f1 1px,transparent 1px),linear-gradient(to bottom,#6366f1 1px,transparent 1px)',
-          backgroundSize: '80px 80px',
+
+        {/* ── Chess-box grid ── */}
+        <div className="pointer-events-none absolute inset-0" style={{
+          backgroundImage: dark
+            ? `linear-gradient(rgba(139,92,246,0.15) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(139,92,246,0.15) 1px, transparent 1px)`
+            : `linear-gradient(rgba(99,102,241,0.12) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(99,102,241,0.12) 1px, transparent 1px)`,
+          backgroundSize: '40px 40px',
         }} />
+
+        {/* ── Frosted-glass overlay ── */}
+        <div className={`pointer-events-none absolute inset-0 backdrop-blur-[1px] ${
+          dark ? 'bg-gray-950/30' : 'bg-white/20'
+        }`} />
 
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-6rem)]">

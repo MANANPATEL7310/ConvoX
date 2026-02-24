@@ -3,6 +3,7 @@ import { Route, Routes, BrowserRouter as Router } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import Authentication from './pages/Authentication';
 import { AuthProvider } from './contexts/AuthContext.jsx';
+import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import HomeComponent from './pages/Home';
 import History from './pages/History';
 import VideoMeetComponent from './pages/VideoMeet';
@@ -12,6 +13,7 @@ import { Toaster } from './components/ui/sonner';
 function App() {
   return (
     <div className="App">
+       <ThemeProvider>
        <Router>
           <AuthProvider>
               <Routes>
@@ -29,6 +31,7 @@ function App() {
               <Toaster position="top-right" richColors />
           </AuthProvider>
        </Router>
+       </ThemeProvider>
     </div>
   )
 }
