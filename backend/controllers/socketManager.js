@@ -65,24 +65,8 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("signal", async (toId, message) => {
-            // Find which room the socket is in
-            const keys = await client.keys("connections:*");
-            let roomUsers = [];
-            
-            for(const key of keys) {
-                const isMember = await client.sIsMember(key, socket.id);
-                if(isMember) {
-                    roomUsers = await client.sMembers(key);
-                    break;
-                }
-            }
-            
-            // Send signal to all users in the room (except sender)
-            roomUsers.forEach(user => {
-                if (user !== socket.id) {
-                    io.to(user).emit("signal", socket.id, message);
-                }
-            });
+            // Send signal directly to the specific target peer (1-to-1 WebRTC)
+            io.to(toId).emit("signal", socket.id, message);
         });
 
         socket.on("chat-message", async (data, sender) => {
