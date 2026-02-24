@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
 import {
   Video, Shield, Zap, Users, Globe, Star,
   ArrowRight, Check, ChevronDown, Play, MonitorPlay,
-  Sun, Moon, Mic, MicOff, VideoOff, ScreenShare,
+  Mic, MicOff, VideoOff, ScreenShare,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════
@@ -80,42 +81,6 @@ const t = {
   videoFrame:   dark => dark ? 'from-violet-500 via-indigo-400 to-blue-500' : 'from-orange-400 via-rose-400 to-indigo-500',
   videoGlow:    dark => dark ? 'bg-violet-500'  : 'bg-orange-400',
 };
-
-/* ═══════════════════════════════════════════════════════════
-   THEME TOGGLE  — opposite-theme styling so it's always visible
-═══════════════════════════════════════════════════════════ */
-function ThemeToggle({ dark, onToggle }) {
-  return (
-    <button
-      onClick={onToggle}
-      aria-label="Toggle theme"
-      title={dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-      className={`
-        relative flex items-center gap-2 px-3 py-1.5 rounded-full border-2 font-semibold text-xs
-        transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500
-        ${dark
-          /* in dark mode — show a *light* pill so it pops against the dark background */
-          ? 'bg-white text-gray-900 border-white/80 shadow-md'
-          /* in light mode — show a *dark* pill so it pops against the light background */
-          : 'bg-gray-900 text-white border-gray-900 shadow-md'
-        }
-      `}
-    >
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={dark ? 'moon' : 'sun'}
-          initial={{ rotate: -60, opacity: 0, scale: 0.5 }}
-          animate={{ rotate: 0,   opacity: 1, scale: 1   }}
-          exit={{    rotate:  60, opacity: 0, scale: 0.5 }}
-          transition={{ duration: 0.25 }}
-        >
-          {dark ? <Sun className="w-3.5 h-3.5 text-yellow-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-400" />}
-        </motion.div>
-      </AnimatePresence>
-      <span>{dark ? 'Light' : 'Dark'}</span>
-    </button>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════
    VIDEO CALL CARD  — cinematic animation with accent frame
@@ -292,8 +257,8 @@ export default function LandingPage() {
             </motion.span>
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
-              {/* Contrast toggle — reads from and writes to centralized ThemeContext */}
-              <ThemeToggle dark={dark} onToggle={toggle} />
+              {/* Theme toggle — shared component, reads from ThemeContext */}
+              <ThemeToggle />
 
               <Link to="/auth">
                 <Button variant="ghost" className={`font-medium transition-colors ${t.navText(dark)}`}>Sign In</Button>
@@ -319,10 +284,10 @@ export default function LandingPage() {
         {/* ── Chess-box grid ── */}
         <div className="pointer-events-none absolute inset-0" style={{
           backgroundImage: dark
-            ? `linear-gradient(rgba(139,92,246,0.15) 1px, transparent 1px),
-               linear-gradient(90deg, rgba(139,92,246,0.15) 1px, transparent 1px)`
-            : `linear-gradient(rgba(99,102,241,0.12) 1px, transparent 1px),
-               linear-gradient(90deg, rgba(99,102,241,0.12) 1px, transparent 1px)`,
+            ? `linear-gradient(rgba(139,92,246,0.07) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(139,92,246,0.07) 1px, transparent 1px)`
+            : `linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px)`,
           backgroundSize: '40px 40px',
         }} />
 

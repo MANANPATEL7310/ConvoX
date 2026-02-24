@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '../contexts/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
+import ThemeToggle from '../components/ThemeToggle';
+import PageWrapper from '../components/PageWrapper';
 import { toast } from 'sonner';
 
 /* ─── Quick-action cards below the join form ─── */
@@ -42,31 +44,10 @@ export default function HomeComponent() {
   const handleKey = e => { if (e.key === 'Enter') handleJoin(); };
 
   return (
-    <div className={`relative min-h-screen overflow-hidden transition-colors duration-300 ${
-      dark ? 'bg-gray-950' : 'bg-gradient-to-br from-indigo-50 via-white to-purple-50'
-    }`}>
-
-      {/* ── Decorative blobs ── */}
-      <div className="pointer-events-none absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply opacity-10 blur-3xl animate-blob" />
-      <div className="pointer-events-none absolute bottom-1/3 right-1/4 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply opacity-10 blur-3xl animate-blob animation-delay-2000" />
-
-      {/* ── Chess-box grid (same as landing page) ── */}
-      <div className="pointer-events-none absolute inset-0" style={{
-        backgroundImage: dark
-          ? `linear-gradient(rgba(139,92,246,0.15) 1px, transparent 1px),
-             linear-gradient(90deg, rgba(139,92,246,0.15) 1px, transparent 1px)`
-          : `linear-gradient(rgba(99,102,241,0.12) 1px, transparent 1px),
-             linear-gradient(90deg, rgba(99,102,241,0.12) 1px, transparent 1px)`,
-        backgroundSize: '40px 40px',
-      }} />
-
-      {/* ── Frosted-glass overlay ── */}
-      <div className={`pointer-events-none absolute inset-0 backdrop-blur-[1px] ${
-        dark ? 'bg-gray-950/30' : 'bg-white/20'
-      }`} />
+    <PageWrapper>
 
       {/* ══════════ NAV ══════════ */}
-      <nav className={`relative z-10 backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
+      <nav className={`backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
         dark ? 'bg-gray-900/80 border-white/10' : 'bg-white/70 border-gray-200/60'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -82,6 +63,9 @@ export default function HomeComponent() {
 
             {/* Nav right */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <ThemeToggle />
+
               <Button variant="ghost" onClick={() => navigate('/history')}
                 className={`flex items-center gap-2 font-medium ${
                   dark ? 'text-gray-300 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50'
@@ -91,7 +75,11 @@ export default function HomeComponent() {
               </Button>
 
               <Button onClick={() => { logout(); navigate('/auth'); }}
-                className="flex items-center gap-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 shadow-sm rounded-lg font-medium">
+                className={`flex items-center gap-2 border shadow-sm rounded-lg font-medium ${
+                  dark
+                    ? 'bg-red-900/30 text-red-400 hover:bg-red-900/50 border-red-800/40'
+                    : 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200'
+                }`}>
                 <LogOut className="w-4 h-4" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>
@@ -101,7 +89,7 @@ export default function HomeComponent() {
       </nav>
 
       {/* ══════════ MAIN CONTENT ══════════ */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 flex-1">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-8rem)]">
 
           {/* ─── LEFT COLUMN ─── */}
@@ -115,7 +103,11 @@ export default function HomeComponent() {
             {user && (
               <motion.div
                 initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                className="self-start inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-full px-4 py-1.5 text-sm font-medium shadow-sm"
+                className={`self-start inline-flex items-center gap-2 border rounded-full px-4 py-1.5 text-sm font-medium shadow-sm ${
+                  dark
+                    ? 'bg-indigo-900/40 border-indigo-700 text-indigo-300'
+                    : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                }`}
               >
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute h-full w-full rounded-full bg-indigo-400 opacity-75" />
@@ -130,11 +122,15 @@ export default function HomeComponent() {
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
               className="flex flex-col gap-3"
             >
-              <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-gray-900 leading-[1.1]">
+              <h1 className={`text-4xl sm:text-5xl font-black tracking-tight leading-[1.1] ${
+                dark ? 'text-white' : 'text-gray-900'
+              }`}>
                 Start your next<br />
                 <span className="shimmer-text">video meeting</span>
               </h1>
-              <p className="text-lg text-gray-500 max-w-md leading-relaxed">
+              <p className={`text-lg max-w-md leading-relaxed ${
+                dark ? 'text-gray-400' : 'text-gray-500'
+              }`}>
                 Enter a code to join instantly, or create a new room and invite your team — all in seconds.
               </p>
             </motion.div>
@@ -142,9 +138,13 @@ export default function HomeComponent() {
             {/* ── Join card ── */}
             <motion.div
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-              className="glass-card rounded-2xl p-6 sm:p-8 max-w-lg shadow-xl"
+              className={`rounded-2xl p-6 sm:p-8 max-w-lg shadow-xl ${
+                dark ? 'dark-glass' : 'glass-card'
+              }`}
             >
-              <h3 className="text-base font-semibold text-gray-500 uppercase tracking-widest mb-5">Join a Meeting</h3>
+              <h3 className={`text-base font-semibold uppercase tracking-widest mb-5 ${
+                dark ? 'text-gray-400' : 'text-gray-500'
+              }`}>Join a Meeting</h3>
 
               <div className="flex flex-col gap-3">
                 <Input
@@ -162,32 +162,38 @@ export default function HomeComponent() {
                 </Button>
               </div>
 
-              {/* Divider */}
-              <div className="mt-6 pt-6 border-t border-gray-100">
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-medium mb-4">Quick Actions</p>
+              {/* Quick actions */}
+              <div className={`mt-6 pt-6 border-t ${
+                dark ? 'border-white/10' : 'border-gray-100'
+              }`}>
+                <p className={`text-xs uppercase tracking-widest font-medium mb-4 ${
+                  dark ? 'text-gray-500' : 'text-gray-400'
+                }`}>Quick Actions</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {QUICK_ACTIONS.map((a, i) => (
+                  {QUICK_ACTIONS.map((a) => (
                     <motion.button
                       key={a.label}
-                      whileHover={{ y: -3, scale: 1.04 }}
-                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ y: -4, scale: 1.05 }}
+                      whileTap={{ scale: 0.96 }}
                       transition={{ duration: 0.18 }}
-                      className={`flex flex-col items-center gap-2 p-3 rounded-xl border group transition-all ${
+                      className={`flex flex-col items-center justify-start gap-3 p-4 rounded-xl border group transition-all min-h-[92px] ${
                         dark
-                          ? 'bg-gray-800/60 border-white/10 hover:border-indigo-500/40 hover:bg-gray-700/60'
-                          : 'bg-white border-gray-100 hover:border-indigo-200 hover:shadow-md'
+                          ? 'bg-gray-800/50 border-white/10 hover:border-indigo-500/50 hover:bg-indigo-950/40'
+                          : 'bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/40 hover:shadow-md'
                       }`}
                     >
-                      <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${a.gradient} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform`}>
-                        <a.icon className="w-4.5 h-4.5 text-white" style={{ width: '1.1rem', height: '1.1rem' }} />
+                      {/* Icon */}
+                      <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${a.gradient} flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform flex-shrink-0`}>
+                        <a.icon className="text-white" style={{ width: '1.1rem', height: '1.1rem' }} />
                       </div>
-                      <div className="text-center">
-                        <div className={`text-xs font-semibold leading-tight ${
-                          dark ? 'text-gray-200' : 'text-gray-800'
-                        }`}>{a.label}</div>
-                        <div className={`text-[10px] leading-tight ${
+                      {/* Text */}
+                      <div className="flex flex-col items-center gap-0.5 w-full">
+                        <span className={`text-xs font-bold leading-tight text-center ${
+                          dark ? 'text-gray-100' : 'text-gray-800'
+                        }`}>{a.label}</span>
+                        <span className={`text-[10px] leading-tight text-center ${
                           dark ? 'text-gray-500' : 'text-gray-400'
-                        }`}>{a.desc}</div>
+                        }`}>{a.desc}</span>
                       </div>
                     </motion.button>
                   ))}
@@ -268,6 +274,6 @@ export default function HomeComponent() {
 
         </div>
       </div>
-    </div>
+    </PageWrapper>
   );
 }
