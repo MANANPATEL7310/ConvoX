@@ -7,6 +7,7 @@ import HomeComponent from './pages/Home';
 import History from './pages/History';
 import VideoMeetComponent from './pages/VideoMeet';
 import PrivateRoute from './components/PrivateRoute';
+import { Toaster } from './components/ui/sonner';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
                       <Route path='/:url' element={<VideoMeetComponent />} />
                   </Route>
               </Routes>
+              <Toaster position="top-right" richColors />
           </AuthProvider>
        </Router>
     </div>

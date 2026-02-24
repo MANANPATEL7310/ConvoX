@@ -11,6 +11,7 @@ import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
 import ChatIcon from '@mui/icons-material/Chat';
 import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
+import { toast } from "sonner";
 
 const SERVER_URL = "http://localhost:8000";
 const ICE_SERVERS = {
@@ -44,6 +45,18 @@ export default function VideoMeetComponent() {
   const username = user?.username || lobbyUsername;
   const shouldShowLobby = !user?.username && !isConnected;
 
+  // Network connection monitoring
+  useEffect(() => {
+    const handleOffline = () => toast.error("You are offline. Connection lost.");
+    const handleOnline = () => toast.success("Back online. Meeting should resume normally.");
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
+
   /* -------------------- MEDIA -------------------- */
 
   const getLocalMedia = useCallback(async (constraints = { video: true, audio: true }) => {
@@ -76,6 +89,7 @@ export default function VideoMeetComponent() {
       return stream;
     } catch (error) {
       console.error("Error accessing media devices:", error);
+      toast.error("Failed to access camera/microphone. Please allow browser permissions and try again.");
       throw error;
     }
   }, []);
@@ -112,7 +126,7 @@ export default function VideoMeetComponent() {
             const sender = senders.find(s => s.track && s.track.kind === track.kind);
             if (sender) {
               // Replace existing track
-              pc.replaceTrack(sender.track, track, stream);
+              sender.replaceTrack(track);
             } else {
               // Add new track if no existing one found
               pc.addTrack(track, stream);
@@ -411,6 +425,10 @@ export default function VideoMeetComponent() {
     });
 
     socket.on('chat-message', addMessage);
+
+    socket.on('disconnect', () => {
+      toast.error("Lost connection to the meeting server.");
+    });
 
     /* ---------------- CLEANUP ---------------- */
     return () => {

@@ -1,7 +1,11 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react'
 import { AuthContext } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom';
-import HomeIcon from '@mui/icons-material/Home';
+import { motion } from 'framer-motion';
+import { Home, Video, Calendar, Clock, ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function History() {
     const { getHistoryOfUser } = useContext(AuthContext);
@@ -34,123 +38,172 @@ export default function History() {
         [meetings, weekAgo]
     );
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        show: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        show: { opacity: 1, y: 0 }
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
             {/* Navigation Header */}
-            <nav className="bg-white shadow-lg border-b border-gray-200">
+            <nav className="bg-white/70 backdrop-blur-md shadow-sm border-b border-gray-200 sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center">
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center"
+                        >
                             <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                 Meeting History
                             </h2>
-                        </div>
+                        </motion.div>
 
-                        <button
-                            onClick={() => routeTo("/home")}
-                            className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                        <motion.div 
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
                         >
-                            <HomeIcon className="text-xl" />
-                            <span className="font-medium">Back to Home</span>
-                        </button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => routeTo("/home")}
+                                className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                            >
+                                <Home className="w-5 h-5" />
+                                <span className="hidden sm:inline font-medium">Back to Home</span>
+                            </Button>
+                        </motion.div>
                     </div>
                 </div>
             </nav>
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
                 {meetings.length === 0 ? (
-                    <div className="text-center py-16">
-                        <div className="w-24 h-24 bg-gray-100 rounded-full mx-auto flex items-center justify-center mb-6">
-                            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="text-center py-20 max-w-md mx-auto"
+                    >
+                        <div className="w-24 h-24 bg-blue-50 border border-blue-100 rounded-full mx-auto flex items-center justify-center mb-6 shadow-inset">
+                            <Video className="w-10 h-10 text-blue-400" />
                         </div>
-                        <h3 className="text-xl font-semibold text-gray-800 mb-2">No meeting history found</h3>
-                        <p className="text-gray-600 mb-6">You haven't joined any meetings yet. Start your first video call!</p>
-                        <button
+                        <h3 className="text-2xl font-bold text-gray-800 mb-3">No meeting history found</h3>
+                        <p className="text-gray-600 mb-8 text-lg">You haven't joined any meetings yet. Start your first video call with ConvoX!</p>
+                        <Button
+                            size="lg"
                             onClick={() => routeTo("/home")}
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all w-full sm:w-auto"
                         >
                             Start a Meeting
-                        </button>
-                    </div>
+                        </Button>
+                    </motion.div>
                 ) : (
-                    <div className="space-y-6">
-                        <div className="text-center mb-8">
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">Your Meeting History</h1>
-                            <p className="text-gray-600">View and manage your past video calls</p>
-                        </div>
+                    <div className="space-y-8">
+                        <motion.div 
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-center mb-10"
+                        >
+                            <h1 className="text-4xl font-extrabold text-gray-900 mb-3">Your Meeting History</h1>
+                            <p className="text-lg text-gray-600">View and rejoin your past video calls effortlessly</p>
+                        </motion.div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <motion.div 
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="show"
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                        >
                             {meetings.map((meeting, index) => (
-                                <div
-                                    key={index}
-                                    className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden group cursor-pointer"
-                                    onClick={() => routeTo(`/${meeting.meetingCode}`)}
-                                >
-                                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2"></div>
-                                    
-                                    <div className="p-6">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                                </svg>
-                                            </div>
-                                            <div className="text-xs text-gray-500 uppercase tracking-wider font-medium">
-                                                Meeting #{index + 1}
-                                            </div>
-                                        </div>
+                                <motion.div key={index} variants={itemVariants}>
+                                    <Card 
+                                        className="bg-white/80 backdrop-blur-sm shadow-md hover:shadow-xl transition-all duration-300 border-gray-100 overflow-hidden group cursor-pointer h-full flex flex-col hover:-translate-y-1"
+                                        onClick={() => routeTo(`/${meeting.meetingCode}`)}
+                                    >
+                                        <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 w-full"></div>
                                         
-                                        <div className="space-y-3">
-                                            <div>
-                                                <p className="text-sm text-gray-500 mb-1">Meeting Code</p>
-                                                <p className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
-                                                    {meeting.meetingCode}
-                                                </p>
+                                        <CardContent className="p-6 flex-1 flex flex-col">
+                                            <div className="flex items-center justify-between mb-5">
+                                                <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                                                    <Video className="w-6 h-6 text-blue-600" />
+                                                </div>
+                                                <Badge variant="outline" className="text-xs text-gray-500 bg-gray-50 uppercase tracking-wider font-medium border-gray-200">
+                                                    Meeting #{index + 1}
+                                                </Badge>
                                             </div>
                                             
-                                            <div>
-                                                <p className="text-sm text-gray-500 mb-1">Date</p>
-                                                <p className="text-gray-800 font-medium">
-                                                    {formatDate(meeting.date)}
-                                                </p>
+                                            <div className="space-y-4 flex-1">
+                                                <div>
+                                                    <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1 flex items-center gap-1">
+                                                        <Video className="w-3 h-3" /> Code
+                                                    </p>
+                                                    <p className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200 truncate pr-2">
+                                                        {meeting.meetingCode}
+                                                    </p>
+                                                </div>
+                                                
+                                                <div>
+                                                    <p className="text-xs text-gray-500 uppercase font-semibold tracking-wide mb-1 flex items-center gap-1">
+                                                        <Calendar className="w-3 h-3" /> Date
+                                                    </p>
+                                                    <p className="text-md text-gray-800 font-medium">
+                                                        {formatDate(meeting.date)}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <div className="mt-4 pt-4 border-t border-gray-100">
-                                            <button className="w-full text-center text-sm text-blue-600 hover:text-blue-700 font-medium group-hover:underline">
-                                                Rejoin Meeting →
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                            <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-center text-blue-600 group-hover:text-blue-700 font-semibold group-hover:gap-2 transition-all">
+                                                <span>Rejoin Meeting</span>
+                                                <ArrowRight className="w-4 h-4 ml-1 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
                             ))}
-                        </div>
+                        </motion.div>
 
                         {/* Summary Stats */}
-                        <div className="mt-12 bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Meeting Summary</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-blue-600 mb-1">{meetings.length}</div>
-                                    <div className="text-sm text-gray-600">Total Meetings</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-green-600 mb-1">
-                                        {thisWeekCount}
+                        <motion.div 
+                            initial={{ opacity: 0, y: 30 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.5 }}
+                        >
+                            <Card className="mt-12 bg-white/80 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100">
+                                <CardContent className="p-8">
+                                    <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                                        <Clock className="w-5 h-5 text-gray-500" /> Meeting Summary
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+                                        <div className="text-center pt-4 sm:pt-0">
+                                            <div className="text-4xl font-extrabold text-blue-600 mb-2">{meetings.length}</div>
+                                            <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Meetings</div>
+                                        </div>
+                                        <div className="text-center pt-4 sm:pt-0">
+                                            <div className="text-4xl font-extrabold text-green-600 mb-2">
+                                                {thisWeekCount}
+                                            </div>
+                                            <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">This Week</div>
+                                        </div>
+                                        <div className="text-center pt-4 sm:pt-0">
+                                            <div className="text-3xl mt-1 font-bold text-purple-600 mb-2">
+                                                {meetings.length > 0 ? "Active" : "None"}
+                                            </div>
+                                            <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Status</div>
+                                        </div>
                                     </div>
-                                    <div className="text-sm text-gray-600">This Week</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-3xl font-bold text-purple-600 mb-1">
-                                        {meetings.length > 0 ? "Active" : "None"}
-                                    </div>
-                                    <div className="text-sm text-gray-600">Status</div>
-                                </div>
-                            </div>
-                        </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     </div>
                 )}
             </div>
