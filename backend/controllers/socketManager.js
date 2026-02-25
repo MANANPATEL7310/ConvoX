@@ -109,6 +109,31 @@ export const connectToSocket = (server) => {
             }
         });
 
+        /* ── Typing indicators ── */
+        const broadcastToRoom = async (eventName, payload) => {
+            const keys = await client.keys("connections:*");
+            for (const key of keys) {
+                const isMember = await client.sIsMember(key, socket.id);
+                if (isMember) {
+                    const users = await client.sMembers(key);
+                    users.forEach(user => {
+                        if (user !== socket.id) {
+                            io.to(user).emit(eventName, payload);
+                        }
+                    });
+                    break;
+                }
+            }
+        };
+
+        socket.on("typing", async (username) => {
+            await broadcastToRoom("user-typing", username);
+        });
+
+        socket.on("stop-typing", async (username) => {
+            await broadcastToRoom("user-stop-typing", username);
+        });
+
         socket.on("disconnect", async () => {
             // Remove username from map
             socketUsernames.delete(socket.id);
