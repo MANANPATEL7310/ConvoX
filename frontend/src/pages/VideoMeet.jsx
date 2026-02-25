@@ -563,12 +563,13 @@ export default function VideoMeetComponent() {
         </div>
       </div>
 
-      {/* ── Chat panel — isolated component, typing never re-renders videos ── */}
       {showModal && (
         <ChatPanel
           messages={messages}
           username={username}
           socketRef={socketRef}
+          socketIdRef={socketIdRef}
+          userNames={userNames}
           onClose={() => setModal(false)}
           onNewMessage={() => setNewMessages((n) => n + 1)}
         />

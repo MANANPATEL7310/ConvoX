@@ -134,6 +134,14 @@ export const connectToSocket = (server) => {
             await broadcastToRoom("user-stop-typing", username);
         });
 
+        /* ── Private (direct) message ── */
+        socket.on("private-message", ({ toSocketId, data, sender }) => {
+            // Deliver to recipient
+            io.to(toSocketId).emit("private-message", { data, sender, fromSocketId: socket.id });
+            // Echo back to sender so they see it in their own chat
+            io.to(socket.id).emit("private-message", { data, sender, fromSocketId: socket.id, toSocketId, isMine: true });
+        });
+
         socket.on("disconnect", async () => {
             // Remove username from map
             socketUsernames.delete(socket.id);
