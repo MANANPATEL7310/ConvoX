@@ -8,6 +8,7 @@ import { connectToSocket, startRedis } from "./controllers/socketManager.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
+import livekitRoutes from "./routes/livekit.routes.js";
 
 
 const app = express();
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ limit: "40kb", extended: true }));
 app.use(cookieParser());
 
 app.use("/api/v1/users", authRoutes);
+app.use("/api/v1/livekit", livekitRoutes);
 
 const start = async () => {
     try {

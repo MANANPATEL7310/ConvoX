@@ -13,6 +13,9 @@ import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
 import { toast } from "sonner";
 import ChatPanel from '../components/ChatPanel';
+import SFURoom from '../components/SFURoom';
+import ModeIndicator from '../components/ModeIndicator';
+import { useMeetingMode } from '../hooks/useMeetingMode';
 
 const SERVER_URL = "http://localhost:8000";
 const ICE_SERVERS = {
@@ -44,6 +47,12 @@ export default function VideoMeetComponent() {
   // Use derived state for display username
   const username = user?.username || lobbyUsername;
   const shouldShowLobby = !user?.username && !isConnected;
+
+  // ── Hybrid architecture mode (P2P | SFU) ──
+  const { mode, participantCount, upgrading } = useMeetingMode(socketRef);
+
+  // Derive a stable room name from the URL for LiveKit room identity
+  const roomName = window.location.href;
 
   // Network connection monitoring
   useEffect(() => {
@@ -498,83 +507,114 @@ export default function VideoMeetComponent() {
   // Main meeting UI
   return (
     <div className="min-h-screen bg-gray-900 relative flex h-screen">
-      {/* Left Side - Video Layout */}
-      <div className={`flex-1 relative transition-all duration-300 ${showModal ? 'max-w-[calc(100vw-20rem)]' : 'w-full'}`}>
-        {/* Video Layout */}
-        <div className={`${styles.conferenceView} ${remoteStreams.length === 1 ? styles.twoUsers : remoteStreams.length >= 2 ? styles.multipleUsers : ''}`}>
-          {/* Remote Videos - occupy background space */}
-          {remoteStreams.map((remoteStream) => (
-            <div key={remoteStream.id} className="relative group w-full h-full">
-              <video
-                autoPlay
-                playsInline
-                muted={false}
-                className="w-full h-full object-cover"
-                ref={(el) => {
-                  if (el && remoteStream.stream) {
-                    el.srcObject = remoteStream.stream;
-                  }
-                }}
-              />
-              <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Local Video - always in corner, outside conferenceView */}
-        <div className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20">
-          <video 
-            ref={localVideoRef} 
-            autoPlay 
-            muted 
-            playsInline
-            className="w-full h-full object-cover bg-black"
-          />
-          <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-            You
-          </div>
-        </div>
 
-        {/* Bottom Controls */}
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4">
-          <IconButton onClick={toggleVideo} style={{ color: "white" }} className="p-2 sm:p-3">
-            {videoEnabled ? <VideocamIcon className="text-lg sm:text-xl" /> : <VideocamOffIcon className="text-lg sm:text-xl" />}
-          </IconButton>
-          
-          <IconButton onClick={toggleAudio} style={{ color: "white" }} className="p-2 sm:p-3">
-            {audioEnabled ? <MicIcon className="text-lg sm:text-xl" /> : <MicOffIcon className="text-lg sm:text-xl" />}
-          </IconButton>
-          
-          <IconButton onClick={toggleScreenShare} style={{ color: "white" }} className="p-2 sm:p-3 hidden sm:inline-flex">
-            {screenSharing ? <StopScreenShareIcon className="text-lg sm:text-xl" /> : <ScreenShareIcon className="text-lg sm:text-xl" />}
-          </IconButton>
-          
-          <IconButton onClick={endCall} style={{ color: "#ef4444" }} className="p-2 sm:p-3">
-            <CallEndIcon className="text-lg sm:text-xl" />
-          </IconButton>
-          
-          <Badge badgeContent={newMessages} max={99} color='warning'>
-            <IconButton onClick={openChat} style={{ color: "white" }} className="p-2 sm:p-3">
-              <ChatIcon className="text-lg sm:text-xl" />                        
-            </IconButton>
-          </Badge>
+      {/* ── P2P → SFU upgrade overlay ── */}
+      {upgrading && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 100,
+          background: 'rgba(9,9,18,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+        }}>
+          <div style={{ width: 48, height: 48, border: '3px solid #6366f1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ color: '#a5b4fc', fontWeight: 600, fontSize: 16 }}>Upgrading to HD call quality…</p>
+          <p style={{ color: '#6b7280', fontSize: 13 }}>Reconnecting {participantCount} participants</p>
         </div>
-      </div>
-
-      {showModal && (
-        <ChatPanel
-          messages={messages}
-          username={username}
-          socketRef={socketRef}
-          socketIdRef={socketIdRef}
-          userNames={userNames}
-          onClose={() => setModal(false)}
-          onNewMessage={() => setNewMessages((n) => n + 1)}
-        />
       )}
 
+      {/* ── SFU mode — LiveKit handles everything ── */}
+      {mode === 'sfu' && !upgrading ? (
+        <SFURoom
+          roomName={roomName}
+          username={username}
+          onEndCall={endCall}
+          showChat={showModal}
+          onToggleChat={openChat}
+          newMessages={newMessages}
+          chatPanel={
+            <ChatPanel
+              messages={messages}
+              username={username}
+              socketRef={socketRef}
+              socketIdRef={socketIdRef}
+              userNames={userNames}
+              onClose={() => setModal(false)}
+              onNewMessage={() => setNewMessages(n => n + 1)}
+            />
+          }
+        />
+      ) : (
+        /* ── P2P mode — original layout ── */
+        <>
+          {/* Left Side - Video Layout */}
+          <div className={`flex-1 relative transition-all duration-300 ${showModal ? 'max-w-[calc(100vw-20rem)]' : 'w-full'}`}>
+
+            {/* Remote video grid */}
+            <div className={`${styles.conferenceView} ${remoteStreams.length === 1 ? styles.twoUsers : remoteStreams.length >= 2 ? styles.multipleUsers : ''}`}>
+              {remoteStreams.map((remoteStream) => (
+                <div key={remoteStream.id} className="relative group w-full h-full">
+                  <video
+                    autoPlay
+                    playsInline
+                    muted={false}
+                    className="w-full h-full object-cover"
+                    ref={(el) => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
+                  />
+                  <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                    {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Local Video — always in corner */}
+            <div className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20">
+              <video
+                ref={localVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="w-full h-full object-cover bg-black"
+              />
+              <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">You</div>
+            </div>
+
+            {/* Bottom Controls */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4">
+              <IconButton onClick={toggleVideo} style={{ color: "white" }}>
+                {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
+              </IconButton>
+              <IconButton onClick={toggleAudio} style={{ color: "white" }}>
+                {audioEnabled ? <MicIcon /> : <MicOffIcon />}
+              </IconButton>
+              <IconButton onClick={toggleScreenShare} style={{ color: "white" }} className="hidden sm:inline-flex">
+                {screenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+              </IconButton>
+              <IconButton onClick={endCall} style={{ color: "#ef4444" }}>
+                <CallEndIcon />
+              </IconButton>
+              <Badge badgeContent={newMessages} max={99} color="warning">
+                <IconButton onClick={openChat} style={{ color: "white" }}>
+                  <ChatIcon />
+                </IconButton>
+              </Badge>
+              {/* Mode badge */}
+              <ModeIndicator mode={mode} participantCount={participantCount} />
+            </div>
+          </div>
+
+          {showModal && (
+            <ChatPanel
+              messages={messages}
+              username={username}
+              socketRef={socketRef}
+              socketIdRef={socketIdRef}
+              userNames={userNames}
+              onClose={() => setModal(false)}
+              onNewMessage={() => setNewMessages((n) => n + 1)}
+            />
+          )}
+        </>
+      )}
     </div>
   );
 }

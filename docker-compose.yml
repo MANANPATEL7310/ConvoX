@@ -1,0 +1,17 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:latest
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50100-50200:50100-50200/udp"
+    environment:
+      LIVEKIT_KEYS: "devkey: secret"
+    command: --dev --node-ip=127.0.0.1
+    restart: unless-stopped
