@@ -1,10 +1,10 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   History, LogOut, Video, Zap, Shield,
   ArrowRight, Users, Clock, Link as LinkIcon,
-  Copy, Check, Sparkles, Mic, MonitorPlay
+  Copy, Check, Sparkles, MonitorPlay, Wifi, Globe
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/useAuth';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import PageWrapper from '../components/PageWrapper';
+import ShareMeetingCard from '../components/ShareMeetingCard';
 import { toast } from 'sonner';
 
 /* ═══════════════════════════════════════════════════════════
@@ -82,7 +83,7 @@ const FEATURES = [
     light: 'bg-purple-50 border-purple-200 text-purple-700', dark: 'bg-purple-900/20 border-purple-700/30 text-purple-300' },
   { icon: MonitorPlay, label: 'Screen sharing',
     light: 'bg-orange-50 border-orange-200 text-orange-700', dark: 'bg-orange-900/20 border-orange-700/30 text-orange-300' },
-  { icon: Mic,         label: 'HD audio',
+  { icon: Video,       label: 'HD video',
     light: 'bg-blue-50 border-blue-200 text-blue-700', dark: 'bg-blue-900/20 border-blue-700/30 text-blue-300' },
 ];
 
@@ -103,6 +104,8 @@ export default function HomeComponent() {
   const navigate = useNavigate();
   const [meetingCode, setMeetingCode] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
+  // Share card state: { code, url } when a meeting is generated
+  const [shareState, setShareState] = useState(null);
   const { user, logout, addToUserHistory } = useAuth();
   const { dark } = useTheme();
 
@@ -124,18 +127,19 @@ export default function HomeComponent() {
     ).join('-');
   };
 
+  const APP_URL = window.location.origin;
+
   const handleQuickAction = useCallback(async (id) => {
     switch (id) {
       case 'new-meeting': {
         const code = generateRoomCode();
-        await addToUserHistory(code);
-        navigate(`/${code}`);
+        // Don't add to history yet — only when user clicks "Join Meeting"
+        setShareState({ code, url: `${APP_URL}/${code}` });
         break;
       }
       case 'team-room': {
         const code = `team-${generateRoomCode()}`;
-        await addToUserHistory(code);
-        navigate(`/${code}`);
+        setShareState({ code, url: `${APP_URL}/${code}` });
         break;
       }
       case 'schedule': {
@@ -144,16 +148,12 @@ export default function HomeComponent() {
       }
       case 'share-link': {
         const code = generateRoomCode();
-        const link = `${window.location.origin}/${code}`;
-        await navigator.clipboard.writeText(link);
-        setLinkCopied(true);
-        toast.success('Meeting link copied to clipboard!');
-        setTimeout(() => setLinkCopied(false), 2500);
+        setShareState({ code, url: `${APP_URL}/${code}` });
         break;
       }
       default: break;
     }
-  }, [addToUserHistory, navigate]);
+  }, []);
 
   return (
     <PageWrapper>
@@ -208,7 +208,7 @@ export default function HomeComponent() {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-14">
         <motion.div
           variants={container} initial="hidden" animate="show"
-          className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-14 items-start min-h-[calc(100vh-8rem)]"
+          className="grid grid-cols-1 lg:grid-cols-5 gap-10 lg:gap-14 items-center min-h-[calc(100vh-8rem)]"
         >
 
           {/* ─── LEFT COLUMN (3/5) ─── */}
@@ -337,8 +337,8 @@ export default function HomeComponent() {
           </div>
 
           {/* ─── RIGHT COLUMN (2/5) ─── */}
-          <motion.div variants={fadeUp} className="lg:col-span-2 hidden lg:block">
-            <div className="sticky top-24">
+          <motion.div variants={fadeUp} className="lg:col-span-2 hidden lg:flex lg:items-center lg:justify-center">
+            <div className="w-full">
               {/* Accent border frame */}
               <div className="relative">
                 <div className="absolute -inset-[2px] rounded-3xl bg-gradient-to-br from-indigo-500/60 via-purple-500/40 to-pink-500/60 animate-gradient-x" style={{ backgroundSize: '200% 200%' }} />
@@ -357,31 +357,79 @@ export default function HomeComponent() {
                     backgroundSize: '20px 20px',
                   }} />
 
-                  <div className="relative z-10 flex flex-col items-center gap-7 text-center">
+                  <div className="relative z-10 flex flex-col items-center gap-6 text-center">
 
-                    {/* Animated icon */}
-                    <motion.div
-                      animate={{
-                        rotate: [0, 3, -3, 0],
-                        scale: [1, 1.04, 1],
-                      }}
-                      transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30 rotate-3">
-                        <Video className="w-10 h-10 text-white -rotate-3" />
-                      </div>
-                    </motion.div>
+                    {/* Live badge */}
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1 rounded-full border ${
+                        dark ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                      }`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        LIVE NOW
+                      </span>
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-full border ${
+                        dark ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300' : 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                      }`}>
+                        <Globe className="w-3 h-3" /> Global Network
+                      </span>
+                    </div>
 
-                    <div className="flex flex-col gap-2">
+                    {/* Animated video call icon with signal rings */}
+                    <div className="relative">
+                      {/* Pulse rings */}
+                      <motion.div
+                        animate={{ scale: [1, 1.6], opacity: [0.4, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+                        className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/40 to-purple-600/40"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.35], opacity: [0.3, 0] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.4 }}
+                        className="absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/30 to-purple-600/30"
+                      />
+                      <motion.div
+                        animate={{ rotate: [0, 4, -4, 0], scale: [1, 1.05, 1] }}
+                        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                      >
+                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30 rotate-3">
+                          <Video className="w-10 h-10 text-white -rotate-3" />
+                        </div>
+                      </motion.div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
                       <h3 className={`text-xl font-black tracking-tight ${dark ? 'text-white' : 'text-gray-900'}`}>
                         Crystal-Clear Calling
                       </h3>
                       <p className={`text-sm max-w-xs mx-auto leading-relaxed ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        HD video, AI noise suppression, and adaptive streaming. Built for teams that move fast.
+                        HD video, AI noise suppression &amp; adaptive streaming. Built for teams that move fast.
                       </p>
                     </div>
 
-                    {/* Feature pills — flowing grid */}
+                    {/* Animated signal / quality bars */}
+                    <div className={`w-full rounded-xl px-4 py-3 border ${
+                      dark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-gray-50/80 border-gray-100'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-[11px] font-semibold uppercase tracking-wider ${
+                          dark ? 'text-gray-500' : 'text-gray-400'
+                        }`}><Wifi className="inline w-3 h-3 mr-1" />Signal Quality</span>
+                        <span className="text-[11px] font-bold text-emerald-500">Excellent</span>
+                      </div>
+                      <div className="flex items-end gap-1 h-8 justify-center">
+                        {[40, 60, 75, 90, 100, 90, 75, 55, 80, 95, 100, 85].map((h, i) => (
+                          <motion.div
+                            key={i}
+                            className="flex-1 rounded-sm bg-gradient-to-t from-indigo-500 to-purple-500 opacity-80"
+                            animate={{ height: [`${h * 0.4}%`, `${h}%`, `${h * 0.6}%`, `${h}%`] }}
+                            transition={{ duration: 1.5 + i * 0.1, repeat: Infinity, ease: 'easeInOut', delay: i * 0.07 }}
+                            style={{ minHeight: '4px' }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Feature pills */}
                     <div className="flex flex-wrap justify-center gap-2">
                       {FEATURES.map((f, i) => (
                         <motion.span
@@ -397,10 +445,10 @@ export default function HomeComponent() {
                     </div>
 
                     {/* Live stats bar */}
-                    <div className={`w-full pt-6 border-t ${dark ? 'border-white/[0.06]' : 'border-gray-100'}`}>
+                    <div className={`w-full pt-5 border-t ${dark ? 'border-white/[0.06]' : 'border-gray-100'}`}>
                       <div className="grid grid-cols-3 gap-4">
                         {[
-                          { value: 'HD',   label: 'Quality',   from: 'from-indigo-500', to: 'to-purple-500' },
+                          { value: 'HD',   label: 'Video',     from: 'from-indigo-500', to: 'to-purple-500' },
                           { value: '24/7', label: 'Available', from: 'from-emerald-500', to: 'to-teal-500' },
                           { value: 'Free', label: 'Forever',   from: 'from-orange-500', to: 'to-rose-500' },
                         ].map(s => (
@@ -412,10 +460,10 @@ export default function HomeComponent() {
                       </div>
                     </div>
 
-                    {/* CTA in right panel too */}
+                    {/* CTA button */}
                     <Button onClick={() => handleQuickAction('new-meeting')} size="lg"
                       className="w-full h-11 text-sm font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:scale-[1.02] active:scale-[0.99] transition-all">
-                      Start Meeting <ArrowRight className="ml-2 w-4 h-4" />
+                      <Video className="mr-2 w-4 h-4" /> Start HD Meeting
                     </Button>
                   </div>
                 </div>
@@ -425,6 +473,20 @@ export default function HomeComponent() {
 
         </motion.div>
       </div>
+
+      {/* ── Share Meeting Card overlay ── */}
+      {shareState && (
+        <ShareMeetingCard
+          meetingUrl={shareState.url}
+          senderName={user?.username || 'Someone'}
+          onClose={() => setShareState(null)}
+          showJoinBtn={true}
+          onJoin={async () => {
+            await addToUserHistory(shareState.code);
+            navigate(`/${shareState.code}`);
+          }}
+        />
+      )}
     </PageWrapper>
   );
 }

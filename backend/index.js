@@ -9,6 +9,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import livekitRoutes from "./routes/livekit.routes.js";
+import inviteRoutes from "./routes/invite.routes.js";
 
 
 const app = express();
@@ -29,6 +30,7 @@ app.use(cookieParser());
 
 app.use("/api/v1/users", authRoutes);
 app.use("/api/v1/livekit", livekitRoutes);
+app.use("/api/v1/invite", inviteRoutes);
 
 const start = async () => {
     try {

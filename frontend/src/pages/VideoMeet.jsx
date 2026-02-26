@@ -9,6 +9,7 @@ import MicOffIcon from '@mui/icons-material/MicOff';
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
 import ChatIcon from '@mui/icons-material/Chat';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ import SFURoom from '../components/SFURoom';
 import ModeIndicator from '../components/ModeIndicator';
 import { useMeetingMode } from '../hooks/useMeetingMode';
 import { useActiveSpeaker } from '../hooks/useActiveSpeaker';
+import ShareMeetingCard from '../components/ShareMeetingCard';
 
 const SERVER_URL = "http://localhost:8000";
 const ICE_SERVERS = {
@@ -46,6 +48,9 @@ export default function VideoMeetComponent() {
   const [isConnected,    setIsConnected]   = useState(false);
   // activeSharingId: 'local' = self sharing | socketId = remote peer sharing | null = nobody
   const [activeSharingId, setActiveSharingId] = useState(null);
+  // Host role — only the host sees the "Share" button
+  const [isHost, setIsHost] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
 
   const { user } = useAuth();
 
@@ -465,6 +470,12 @@ export default function VideoMeetComponent() {
       setActiveSharingId(sharing ? sharingSocketId : null);
     });
 
+    // ── Host role assignment ──
+    socket.on('role-assigned', ({ role }) => {
+      setIsHost(role === 'host');
+      if (role === 'host') toast.success('You are the host of this meeting');
+    });
+
     socket.on('disconnect', () => {
       toast.error("Lost connection to the meeting server.");
     });
@@ -744,6 +755,16 @@ export default function VideoMeetComponent() {
                   <ChatIcon />
                 </IconButton>
               </Badge>
+              {/* Share button — host only */}
+              {isHost && (
+                <IconButton
+                  onClick={() => setShowShareCard(true)}
+                  title="Invite participants"
+                  style={{ color: '#a78bfa' }}
+                >
+                  <PersonAddIcon />
+                </IconButton>
+              )}
               <ModeIndicator mode={mode} participantCount={participantCount} />
             </div>
           </div>
@@ -760,6 +781,16 @@ export default function VideoMeetComponent() {
             />
           )}
         </>
+      )}
+
+      {/* ── Share Meeting Card (host only) ── */}
+      {showShareCard && (
+        <ShareMeetingCard
+          meetingUrl={window.location.href}
+          senderName={username}
+          onClose={() => setShowShareCard(false)}
+          showJoinBtn={false}
+        />
       )}
     </div>
   );

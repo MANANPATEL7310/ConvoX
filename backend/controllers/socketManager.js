@@ -59,6 +59,19 @@ export const connectToSocket = (server) => {
             const users = await client.sMembers(`connections:${path}`);
             const participantCount = users.length;
 
+            // ── Host role: first user in the room becomes host ──
+            const hostKey = `host:${path}`;
+            let currentHost = await client.get(hostKey);
+            if (!currentHost) {
+                await client.set(hostKey, socket.id);
+                currentHost = socket.id;
+                console.log(`Room ${path}: ${socket.id} is now the HOST`);
+            }
+            // Tell the joining user their role
+            io.to(socket.id).emit("role-assigned", {
+                role: socket.id === currentHost ? 'host' : 'participant',
+            });
+
             // Build usernames map for all peers
             const usernames = {};
             for (const uid of users) {
@@ -154,13 +167,24 @@ export const connectToSocket = (server) => {
             // Notify remaining users that this peer left
             remaining.forEach(uid => io.to(uid).emit("user-left", socket.id));
 
+            // ── Host promotion: if the leaving user was host, promote next ──
+            const hostKey = `host:${roomPath}`;
+            const currentHost = await client.get(hostKey);
+            if (currentHost === socket.id && remaining.length > 0) {
+                const newHost = remaining[0];
+                await client.set(hostKey, newHost);
+                io.to(newHost).emit("role-assigned", { role: 'host' });
+                console.log(`Room ${roomPath}: host left → ${newHost} promoted`);
+            }
+
             // Re-broadcast set-mode so participant count + mode badge updates
             if (remaining.length > 0) {
                 await broadcastMode(io, roomKey, roomPath);
             } else {
-                // Empty room — clean up Redis
+                // Empty room — clean up Redis (including host key)
                 await client.del(roomKey);
                 await client.del(`messages:${roomPath}`);
+                await client.del(hostKey);
             }
         });
     });
