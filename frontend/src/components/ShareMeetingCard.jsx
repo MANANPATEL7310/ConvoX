@@ -126,31 +126,36 @@ export default function ShareMeetingCard({ meetingUrl, senderName, onClose, onJo
           {/* Top gradient accent */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
 
-          {/* Close button — inline styles to guarantee visibility */}
+          {/* Close / Cancel button — Max visibility */}
           <button
             onClick={onClose}
             title="Cancel"
             style={{
               position: 'absolute',
-              top: 12,
-              right: 12,
-              width: 36,
+              top: 16,
+              right: 16,
               height: 36,
-              borderRadius: '50%',
+              padding: '0 16px',
+              borderRadius: 18,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: 6,
               cursor: 'pointer',
-              zIndex: 20,
-              border: dark ? '1px solid #4b5563' : '1px solid #d1d5db',
-              background: dark ? '#374151' : '#f3f4f6',
-              color: dark ? '#e5e7eb' : '#374151',
-              transition: 'background 0.2s',
+              zIndex: 50,
+              border: dark ? '1px solid #4b5563' : '1px solid #e5e7eb',
+              background: dark ? '#1f2937' : '#ffffff',
+              color: dark ? '#f9fafb' : '#111827',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              fontWeight: 600,
+              fontSize: '13px',
+              transition: 'all 0.2s',
             }}
-            onMouseEnter={e => e.currentTarget.style.background = dark ? '#4b5563' : '#e5e7eb'}
-            onMouseLeave={e => e.currentTarget.style.background = dark ? '#374151' : '#f3f4f6'}
+            onMouseEnter={e => e.currentTarget.style.background = dark ? '#374151' : '#f3f4f6'}
+            onMouseLeave={e => e.currentTarget.style.background = dark ? '#1f2937' : '#ffffff'}
           >
-            <X style={{ width: 18, height: 18 }} />
+            <X style={{ width: 16, height: 16, stroke: dark ? '#f9fafb' : '#111827' }} />
+            Cancel
           </button>
 
           {/* Header */}
