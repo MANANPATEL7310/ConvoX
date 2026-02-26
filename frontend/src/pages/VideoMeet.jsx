@@ -16,6 +16,7 @@ import ChatPanel from '../components/ChatPanel';
 import SFURoom from '../components/SFURoom';
 import ModeIndicator from '../components/ModeIndicator';
 import { useMeetingMode } from '../hooks/useMeetingMode';
+import { useActiveSpeaker } from '../hooks/useActiveSpeaker';
 
 const SERVER_URL = "http://localhost:8000";
 const ICE_SERVERS = {
@@ -50,6 +51,9 @@ export default function VideoMeetComponent() {
 
   // ── Hybrid architecture mode (P2P | SFU) ──
   const { mode, participantCount, upgrading } = useMeetingMode(socketRef);
+
+  // ── Active speaker detection (P2P mode only) ──
+  const activeSpeakers = useActiveSpeaker(remoteStreams);
 
   // Derive a stable room name from the URL for LiveKit room identity
   const roomName = window.location.href;
@@ -567,20 +571,43 @@ export default function VideoMeetComponent() {
                   <p className={styles.waitingText}>Waiting for others to join…</p>
                 </>
               ) : (
-                remoteStreams.map((remoteStream) => (
-                  <div key={remoteStream.id} className="relative group w-full h-full">
-                    <video
-                      autoPlay
-                      playsInline
-                      muted={false}
-                      className="w-full h-full object-cover"
-                      ref={(el) => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
-                    />
-                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                      {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
+                remoteStreams.map((remoteStream) => {
+                  const isSpeaking = activeSpeakers.has(remoteStream.id);
+                  return (
+                    <div key={remoteStream.id} className="relative group w-full h-full">
+                      <video
+                        autoPlay
+                        playsInline
+                        muted={false}
+                        className="w-full h-full object-cover"
+                        ref={(el) => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
+                      />
+
+                      {/* ── Speaking ring overlay ── */}
+                      {isSpeaking && <div className={styles.speakingRing} />}
+
+                      {/* ── Mic badge (top-left) ── */}
+                      {isSpeaking && (
+                        <div className={styles.speakingMicBadge} title="Speaking">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+                          </svg>
+                        </div>
+                      )}
+
+                      {/* ── Name label ── */}
+                      <div
+                        className="absolute bottom-2 left-2 text-white px-2 py-1 rounded text-sm"
+                        style={{
+                          background: isSpeaking ? 'rgba(34,197,94,0.75)' : 'rgba(0,0,0,0.5)',
+                          transition: 'background 0.3s ease',
+                        }}
+                      >
+                        {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

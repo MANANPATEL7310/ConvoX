@@ -1,3 +1,60 @@
+/* ── Active speaker glow ring ── */
+.speakingRing {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+  box-shadow:
+    inset 0 0 0 3px #22c55e,
+    inset 0 0 20px rgba(34, 197, 94, 0.25);
+  animation: speakPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes speakPulse {
+  from {
+    box-shadow:
+      inset 0 0 0 2px #22c55e,
+      inset 0 0 8px rgba(34, 197, 94, 0.2);
+    opacity: 0.8;
+  }
+
+  to {
+    box-shadow:
+      inset 0 0 0 3px #4ade80,
+      inset 0 0 24px rgba(74, 222, 128, 0.4);
+    opacity: 1;
+  }
+}
+
+/* Mic icon shown on tile when speaking */
+.speakingMicBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  background: #22c55e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11;
+  animation: micPop 0.2s ease-out;
+}
+
+@keyframes micPop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .meetVideoContainer {
   position: relative;
   height: 100vh;
@@ -46,7 +103,7 @@
   /* Ensure above video */
   padding: 20px 10px;
   /* Spacing */
-  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -127,8 +184,17 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50%       { opacity: 1;   transform: scale(1.2); }
+
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 /* ── 1 remote user: fills entire background ── */
@@ -138,7 +204,7 @@
   justify-content: center;
 }
 
-.conferenceView.oneUser > div {
+.conferenceView.oneUser>div {
   width: 100%;
   height: 100%;
 }
@@ -157,7 +223,7 @@
   height: 100%;
 }
 
-.conferenceView.twoUsers > div {
+.conferenceView.twoUsers>div {
   width: 100%;
   height: 100%;
 }
@@ -177,8 +243,9 @@
   height: 100%;
 }
 
-.conferenceView.threeUsers > div:nth-child(3) {
-  grid-column: 1 / -1; /* span both columns */
+.conferenceView.threeUsers>div:nth-child(3) {
+  grid-column: 1 / -1;
+  /* span both columns */
 }
 
 .conferenceView.threeUsers video {
@@ -221,9 +288,17 @@
 /* ── Mobile Responsive ── */
 
 @media (max-width: 768px) {
-  .conferenceView.twoUsers   { grid-template-columns: 1fr 1fr; }
-  .conferenceView.threeUsers { grid-template-columns: 1fr 1fr; }
-  .conferenceView.fourUsers  { grid-template-columns: 1fr 1fr; }
+  .conferenceView.twoUsers {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .conferenceView.threeUsers {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .conferenceView.fourUsers {
+    grid-template-columns: 1fr 1fr;
+  }
 
   .conferenceView.multipleUsers {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -233,9 +308,18 @@
 }
 
 @media (max-width: 640px) {
-  .conferenceView.twoUsers   { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  .conferenceView.threeUsers { grid-template-columns: 1fr; }
-  .conferenceView.fourUsers  { grid-template-columns: 1fr 1fr; }
+  .conferenceView.twoUsers {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .conferenceView.threeUsers {
+    grid-template-columns: 1fr;
+  }
+
+  .conferenceView.fourUsers {
+    grid-template-columns: 1fr 1fr;
+  }
 
   .conferenceView.multipleUsers {
     grid-template-columns: repeat(2, 1fr);
@@ -245,9 +329,18 @@
 }
 
 @media (max-width: 480px) {
-  .conferenceView.twoUsers   { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  .conferenceView.threeUsers { grid-template-columns: 1fr; }
-  .conferenceView.fourUsers  { grid-template-columns: 1fr; }
+  .conferenceView.twoUsers {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .conferenceView.threeUsers {
+    grid-template-columns: 1fr;
+  }
+
+  .conferenceView.fourUsers {
+    grid-template-columns: 1fr;
+  }
 
   .conferenceView.multipleUsers {
     grid-template-columns: 1fr;
@@ -304,7 +397,7 @@
   padding: 20px;
   z-index: 10;
   color: black;
-  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
