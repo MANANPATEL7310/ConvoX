@@ -100,11 +100,61 @@
   overflow: hidden;
 }
 
-/* Special layout for exactly 2 users - remote user takes full background */
-.conferenceView.twoUsers {
+/* ── 0 remote users: waiting state ── */
+.conferenceView.waitingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+  gap: 16px;
+}
+
+.waitingText {
+  color: #9ca3af;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.waitingDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6366f1;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
+/* ── 1 remote user: fills entire background ── */
+.conferenceView.oneUser {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.conferenceView.oneUser > div {
+  width: 100%;
+  height: 100%;
+}
+
+.conferenceView.oneUser video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── 2 remote users: side-by-side 50/50 ── */
+.conferenceView.twoUsers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  height: 100%;
 }
 
 .conferenceView.twoUsers > div {
@@ -116,13 +166,46 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 0;
 }
 
-/* Layout for 3+ users - divide background space equally */
+/* ── 3 remote users: top row 2 tiles + bottom row 1 centered ── */
+.conferenceView.threeUsers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  height: 100%;
+}
+
+.conferenceView.threeUsers > div:nth-child(3) {
+  grid-column: 1 / -1; /* span both columns */
+}
+
+.conferenceView.threeUsers video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── 4 remote users: perfect 2×2 grid ── */
+.conferenceView.fourUsers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  height: 100%;
+}
+
+.conferenceView.fourUsers video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── 5+ remote users: auto-filling grid ── */
 .conferenceView.multipleUsers {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   grid-auto-rows: 1fr;
   gap: 2px;
   padding: 2px;
@@ -133,20 +216,15 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 0;
 }
 
-/* Layout for no remote users (only local user) */
-.conferenceView:not(.twoUsers):not(.multipleUsers) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-/* Mobile Responsive Design */
+/* ── Mobile Responsive ── */
 
 @media (max-width: 768px) {
+  .conferenceView.twoUsers   { grid-template-columns: 1fr 1fr; }
+  .conferenceView.threeUsers { grid-template-columns: 1fr 1fr; }
+  .conferenceView.fourUsers  { grid-template-columns: 1fr 1fr; }
+
   .conferenceView.multipleUsers {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1px;
@@ -155,6 +233,10 @@
 }
 
 @media (max-width: 640px) {
+  .conferenceView.twoUsers   { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  .conferenceView.threeUsers { grid-template-columns: 1fr; }
+  .conferenceView.fourUsers  { grid-template-columns: 1fr 1fr; }
+
   .conferenceView.multipleUsers {
     grid-template-columns: repeat(2, 1fr);
     gap: 1px;
@@ -163,14 +245,10 @@
 }
 
 @media (max-width: 480px) {
-  .conferenceView.multipleUsers {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1px;
-    padding: 1px;
-  }
-}
+  .conferenceView.twoUsers   { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+  .conferenceView.threeUsers { grid-template-columns: 1fr; }
+  .conferenceView.fourUsers  { grid-template-columns: 1fr; }
 
-@media (max-width: 380px) {
   .conferenceView.multipleUsers {
     grid-template-columns: 1fr;
     gap: 1px;

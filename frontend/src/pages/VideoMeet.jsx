@@ -443,6 +443,16 @@ export default function VideoMeetComponent() {
 
   /* -------------------- UI -------------------- */
 
+  /* ── Grid layout class based on remote participant count ── */
+  const getGridClass = (count) => {
+    if (count === 0) return styles.waitingState;
+    if (count === 1) return styles.oneUser;
+    if (count === 2) return styles.twoUsers;
+    if (count === 3) return styles.threeUsers;
+    if (count === 4) return styles.fourUsers;
+    return styles.multipleUsers; // 5+
+  };
+
   const openChat = () => {
     setModal(!showModal); // Toggle chat modal
     if (!showModal) {
@@ -549,21 +559,29 @@ export default function VideoMeetComponent() {
           <div className={`flex-1 relative transition-all duration-300 ${showModal ? 'max-w-[calc(100vw-20rem)]' : 'w-full'}`}>
 
             {/* Remote video grid */}
-            <div className={`${styles.conferenceView} ${remoteStreams.length === 1 ? styles.twoUsers : remoteStreams.length >= 2 ? styles.multipleUsers : ''}`}>
-              {remoteStreams.map((remoteStream) => (
-                <div key={remoteStream.id} className="relative group w-full h-full">
-                  <video
-                    autoPlay
-                    playsInline
-                    muted={false}
-                    className="w-full h-full object-cover"
-                    ref={(el) => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
-                  />
-                  <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-                    {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
+            <div className={`${styles.conferenceView} ${getGridClass(remoteStreams.length)}`}>
+              {remoteStreams.length === 0 ? (
+                /* ── Waiting state: no one else has joined yet ── */
+                <>
+                  <span className={styles.waitingDot} />
+                  <p className={styles.waitingText}>Waiting for others to join…</p>
+                </>
+              ) : (
+                remoteStreams.map((remoteStream) => (
+                  <div key={remoteStream.id} className="relative group w-full h-full">
+                    <video
+                      autoPlay
+                      playsInline
+                      muted={false}
+                      className="w-full h-full object-cover"
+                      ref={(el) => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
+                    />
+                    <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                      {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Local Video — always in corner */}
