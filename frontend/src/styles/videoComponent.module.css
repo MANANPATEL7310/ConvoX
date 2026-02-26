@@ -1,3 +1,180 @@
+/* ═══════════════════════════════════════════════════
+   PRESENTER LAYOUT — screen share mode (Zoom/Meet style)
+   ═══════════════════════════════════════════════════ */
+
+/* Outer container: main stage + sidebar strip */
+.presenterLayout {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 100%;
+  background: #0a0a0f;
+  gap: 4px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+/* Large main pane — shows the screen being shared */
+.presenterMain {
+  flex: 1;
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  min-width: 0;
+}
+
+/* Vertical sidebar — camera thumbnails */
+.presenterSidebar {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 8px;
+  padding-bottom: 80px;
+  /* leave room for controls bar */
+}
+
+.presenterSidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.presenterSidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.presenterSidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+/* Individual thumbnail in sidebar */
+.presenterThumb {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1a1a2e;
+  flex-shrink: 0;
+  transition: outline 0.2s ease;
+}
+
+/* Name label at bottom of each thumbnail */
+.thumbLabel {
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 12px);
+}
+
+/* Banner shown to the LOCAL sharer (prevents hall-of-mirrors) */
+.sharingBanner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #1e1e3f 0%, #0a0a1a 100%);
+  gap: 8px;
+  padding: 32px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.sharingBannerTitle {
+  color: #e5e7eb;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.sharingBannerSub {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0;
+}
+
+.stopSharingBtn {
+  margin-top: 16px;
+  padding: 10px 24px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.stopSharingBtn:hover {
+  background: #dc2626;
+}
+
+.stopSharingBtn:active {
+  transform: scale(0.97);
+}
+
+/* "X is sharing" overlay label in main stage */
+.sharerLabel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.85);
+  padding: 4px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  pointer-events: none;
+  gap: 4px;
+}
+
+/* ── Responsive: on narrow screens sidebar goes below main ── */
+@media (max-width: 768px) {
+  .presenterLayout {
+    flex-direction: column;
+  }
+
+  .presenterSidebar {
+    width: 100%;
+    flex-direction: row;
+    height: 90px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0;
+    padding-right: 80px;
+    /* room for controls */
+  }
+
+  .presenterThumb {
+    width: 120px;
+    flex-shrink: 0;
+    aspect-ratio: 16 / 9;
+  }
+}
+
 /* ── Active speaker glow ring ── */
 .speakingRing {
   position: absolute;

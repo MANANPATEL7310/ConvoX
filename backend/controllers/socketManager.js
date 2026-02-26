@@ -126,6 +126,14 @@ export const connectToSocket = (server) => {
         socket.on("typing",      async (u) => broadcastToRoomExcludeSelf("user-typing",      u));
         socket.on("stop-typing", async (u) => broadcastToRoomExcludeSelf("user-stop-typing", u));
 
+        /* ── Screen share signalling ── */
+        socket.on("screen-share-toggled", async ({ sharing }) => {
+            await broadcastToRoomExcludeSelf("screen-share-toggled", {
+                sharingSocketId: socket.id,
+                sharing,
+            });
+        });
+
         /* ── Private (direct) message ── */
         socket.on("private-message", ({ toSocketId, data, sender }) => {
             io.to(toSocketId).emit("private-message", { data, sender, fromSocketId: socket.id });

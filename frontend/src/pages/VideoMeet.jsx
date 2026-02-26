@@ -25,23 +25,27 @@ const ICE_SERVERS = {
 
 export default function VideoMeetComponent() {
   // Refs for proper cleanup and state management
-  const socketRef = useRef(null);
-  const peersRef = useRef({});
-  const localStreamRef = useRef(null);
-  const localVideoRef = useRef(null);
-  const socketIdRef = useRef(null);
+  const socketRef      = useRef(null);
+  const peersRef       = useRef({});
+  const localStreamRef = useRef(null);   // active camera stream (never the screen)
+  const cameraStreamRef = useRef(null);  // always the camera, even during screen share
+  const screenStreamRef = useRef(null);  // screen share stream while active
+  const localVideoRef  = useRef(null);
+  const socketIdRef    = useRef(null);
 
   // State for UI
-  const [remoteStreams, setRemoteStreams] = useState([]);
-  const [userNames, setUserNames] = useState({});
-  const [messages, setMessages] = useState([]);
-  const [showModal, setModal] = useState(false);
-  const [newMessages, setNewMessages] = useState(0);
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [screenSharing, setScreenSharing] = useState(false);
-  const [lobbyUsername, setLobbyUsername] = useState("");
-  const [isConnected, setIsConnected] = useState(false);
+  const [remoteStreams,  setRemoteStreams]  = useState([]);
+  const [userNames,      setUserNames]     = useState({});
+  const [messages,       setMessages]      = useState([]);
+  const [showModal,      setModal]         = useState(false);
+  const [newMessages,    setNewMessages]   = useState(0);
+  const [videoEnabled,   setVideoEnabled]  = useState(true);
+  const [audioEnabled,   setAudioEnabled]  = useState(true);
+  const [screenSharing,  setScreenSharing] = useState(false);
+  const [lobbyUsername,  setLobbyUsername] = useState("");
+  const [isConnected,    setIsConnected]   = useState(false);
+  // activeSharingId: 'local' = self sharing | socketId = remote peer sharing | null = nobody
+  const [activeSharingId, setActiveSharingId] = useState(null);
 
   const { user } = useAuth();
 
@@ -107,53 +111,83 @@ export default function VideoMeetComponent() {
     }
   }, []);
 
-  const getDisplayMedia = useCallback(async () => {
+  /**
+   * startScreenShare — properly handles screen share:
+   * - Keeps camera stream alive (no hall-of-mirrors)
+   * - Replaces ONLY the video track in each peer connection
+   * - Local corner still shows camera, not the screen
+   */
+  const startScreenShare = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ 
-        video: true, 
-        audio: true 
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false, // no system audio — avoids duplicate audio track bug
       });
-      
-      // Replace local stream with display stream
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      
-      localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
 
-      // Handle screen share end
-      stream.getVideoTracks()[0].onended = () => {
-        setScreenSharing(false);
-        getLocalMedia();
-      };
+      screenStreamRef.current = screenStream;
+      // Save camera ref so we can restore it
+      cameraStreamRef.current = localStreamRef.current;
 
-      // Update all peer connections with new stream using replaceTrack
+      // ── Replace video track in every peer connection ──
+      const screenVideoTrack = screenStream.getVideoTracks()[0];
       Object.values(peersRef.current).forEach(pc => {
-        if (pc.signalingState !== 'closed') {
-          const senders = pc.getSenders();
-          
-          stream.getTracks().forEach((track) => {
-            const sender = senders.find(s => s.track && s.track.kind === track.kind);
-            if (sender) {
-              // Replace existing track
-              sender.replaceTrack(track);
-            } else {
-              // Add new track if no existing one found
-              pc.addTrack(track, stream);
-            }
-          });
+        if (pc.signalingState === 'closed') return;
+        const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (videoSender) {
+          videoSender.replaceTrack(screenVideoTrack);
         }
+        // NOTE: intentionally NOT adding audio — camera mic stays active
       });
 
-      return stream;
-    } catch (error) {
-      console.error('Error getting display media:', error);
-      throw error;
+      // ── Local corner keeps showing camera (no mirror) ──
+      // localVideoRef already has cameraStream — do NOT change it
+
+      // Handle browser's built-in "Stop sharing" button
+      screenVideoTrack.onended = () => stopScreenShare();
+
+      setScreenSharing(true);
+      setActiveSharingId('local');
+      socketRef.current?.emit('screen-share-toggled', { sharing: true });
+      toast.success('Screen sharing started');
+
+      return screenStream;
+    } catch (err) {
+      if (err.name !== 'NotAllowedError') {
+        console.error('getDisplayMedia error:', err);
+        toast.error('Could not share screen.');
+      }
+      throw err;
     }
-  }, [getLocalMedia]);
+  }, []);
+
+  /**
+   * stopScreenShare — restores camera track to all peers
+   */
+  const stopScreenShare = useCallback(() => {
+    const cameraStream = cameraStreamRef.current;
+    if (!cameraStream) return;
+
+    // Stop all screen tracks
+    screenStreamRef.current?.getTracks().forEach(t => t.stop());
+    screenStreamRef.current = null;
+
+    const cameraVideoTrack = cameraStream.getVideoTracks()[0];
+    if (cameraVideoTrack) {
+      Object.values(peersRef.current).forEach(pc => {
+        if (pc.signalingState === 'closed') return;
+        const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (videoSender) videoSender.replaceTrack(cameraVideoTrack);
+      });
+    }
+
+    // Restore local stream pointer
+    localStreamRef.current = cameraStream;
+
+    setScreenSharing(false);
+    setActiveSharingId(null);
+    socketRef.current?.emit('screen-share-toggled', { sharing: false });
+    toast.info('Screen sharing stopped');
+  }, []);
 
   /* -------------------- PEER CONNECTION -------------------- */
 
@@ -231,17 +265,13 @@ export default function VideoMeetComponent() {
 
   const toggleScreenShare = useCallback(async () => {
     if (screenSharing) {
-      setScreenSharing(false);
-      await getLocalMedia({ video: videoEnabled, audio: audioEnabled });
+      stopScreenShare();
     } else {
       try {
-        await getDisplayMedia();
-        setScreenSharing(true);
-      } catch (error) {
-        console.error('Failed to start screen sharing:', error);
-      }
+        await startScreenShare();
+      } catch (_) { /* user cancelled or error already toasted */ }
     }
-  }, [screenSharing, videoEnabled, audioEnabled, getLocalMedia, getDisplayMedia]);
+  }, [screenSharing, startScreenShare, stopScreenShare]);
 
   const endCall = useCallback(() => {
     // Stop all tracks
@@ -430,6 +460,11 @@ export default function VideoMeetComponent() {
 
     socket.on('chat-message', addMessage);
 
+    // ── Screen share presence: update layout when a remote peer starts/stops sharing ──
+    socket.on('screen-share-toggled', ({ sharingSocketId, sharing }) => {
+      setActiveSharingId(sharing ? sharingSocketId : null);
+    });
+
     socket.on('disconnect', () => {
       toast.error("Lost connection to the meeting server.");
     });
@@ -557,73 +592,132 @@ export default function VideoMeetComponent() {
           }
         />
       ) : (
-        /* ── P2P mode — original layout ── */
+        /* ── P2P mode ── */
         <>
-          {/* Left Side - Video Layout */}
           <div className={`flex-1 relative transition-all duration-300 ${showModal ? 'max-w-[calc(100vw-20rem)]' : 'w-full'}`}>
 
-            {/* Remote video grid */}
-            <div className={`${styles.conferenceView} ${getGridClass(remoteStreams.length)}`}>
-              {remoteStreams.length === 0 ? (
-                /* ── Waiting state: no one else has joined yet ── */
-                <>
-                  <span className={styles.waitingDot} />
-                  <p className={styles.waitingText}>Waiting for others to join…</p>
-                </>
-              ) : (
-                remoteStreams.map((remoteStream) => {
-                  const isSpeaking = activeSpeakers.has(remoteStream.id);
-                  return (
-                    <div key={remoteStream.id} className="relative group w-full h-full">
-                      <video
-                        autoPlay
-                        playsInline
-                        muted={false}
-                        className="w-full h-full object-cover"
-                        ref={(el) => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
-                      />
+            {/* ══════════════════════════════════════════════════
+                PRESENTER LAYOUT — active when anyone is sharing
+            ══════════════════════════════════════════════════ */}
+            {activeSharingId ? (
+              <div className={styles.presenterLayout}>
 
-                      {/* ── Speaking ring overlay ── */}
-                      {isSpeaking && <div className={styles.speakingRing} />}
-
-                      {/* ── Mic badge (top-left) ── */}
-                      {isSpeaking && (
-                        <div className={styles.speakingMicBadge} title="Speaking">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
-                          </svg>
-                        </div>
-                      )}
-
-                      {/* ── Name label ── */}
-                      <div
-                        className="absolute bottom-2 left-2 text-white px-2 py-1 rounded text-sm"
-                        style={{
-                          background: isSpeaking ? 'rgba(34,197,94,0.75)' : 'rgba(0,0,0,0.5)',
-                          transition: 'background 0.3s ease',
-                        }}
-                      >
-                        {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
+                {/* ── Main stage: sharer's screen ── */}
+                <div className={styles.presenterMain}>
+                  {activeSharingId === 'local' ? (
+                    /* Sharer sees a banner (not their own screen — avoids hall-of-mirrors) */
+                    <div className={styles.sharingBanner}>
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="#6366f1" style={{ marginBottom: 12 }}>
+                        <path d="M20 3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h3l-1 3h10l-1-3h3a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 13H4V5h16v11z" />
+                      </svg>
+                      <p className={styles.sharingBannerTitle}>You are sharing your screen</p>
+                      <p className={styles.sharingBannerSub}>Other participants can see your screen</p>
+                      <button className={styles.stopSharingBtn} onClick={stopScreenShare}>
+                        Stop Sharing
+                      </button>
+                    </div>
+                  ) : (
+                    /* Remote sharer — their stream IS the screen share */
+                    <div className="relative w-full h-full">
+                      {(() => {
+                        const sharerStream = remoteStreams.find(r => r.id === activeSharingId);
+                        return sharerStream ? (
+                          <video
+                            key={sharerStream.id + '-screen'}
+                            autoPlay playsInline muted={false}
+                            className="w-full h-full"
+                            style={{ objectFit: 'contain', background: '#000' }}
+                            ref={el => { if (el && sharerStream.stream) el.srcObject = sharerStream.stream; }}
+                          />
+                        ) : null;
+                      })()}
+                      <div className={styles.sharerLabel}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="white" style={{ marginRight: 4 }}>
+                          <path d="M20 3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h3l-1 3h10l-1-3h3a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 13H4V5h16v11z" />
+                        </svg>
+                        {userNames[activeSharingId] || `User ${activeSharingId.slice(-4)}`} is sharing
                       </div>
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  )}
+                </div>
 
-            {/* Local Video — always in corner */}
-            <div className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover bg-black"
-              />
-              <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">You</div>
-            </div>
+                {/* ── Sidebar: camera thumbnails of everyone else ── */}
+                <div className={styles.presenterSidebar}>
+                  {/* Local camera thumbnail */}
+                  <div className={styles.presenterThumb}>
+                    <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+                    <div className={styles.thumbLabel}>You</div>
+                  </div>
 
-            {/* Bottom Controls */}
+                  {/* Remote cameras (all peers, including the sharer so you see their face) */}
+                  {remoteStreams.map(rs => {
+                    const isSpeaking = activeSpeakers.has(rs.id);
+                    return (
+                      <div key={rs.id} className={styles.presenterThumb} style={{ outline: isSpeaking ? '2px solid #22c55e' : 'none' }}>
+                        <video
+                          autoPlay playsInline muted={false}
+                          className="w-full h-full object-cover"
+                          ref={el => { if (el && rs.stream) el.srcObject = rs.stream; }}
+                        />
+                        {isSpeaking && <div className={styles.speakingRing} />}
+                        <div className={styles.thumbLabel}>{userNames[rs.id] || `User ${rs.id.slice(-4)}`}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* ══════════════════════════════════════════
+                 NORMAL GRID — nobody is sharing screen
+              ══════════════════════════════════════════ */
+              <>
+                <div className={`${styles.conferenceView} ${getGridClass(remoteStreams.length)}`}>
+                  {remoteStreams.length === 0 ? (
+                    <>
+                      <span className={styles.waitingDot} />
+                      <p className={styles.waitingText}>Waiting for others to join…</p>
+                    </>
+                  ) : (
+                    remoteStreams.map((remoteStream) => {
+                      const isSpeaking = activeSpeakers.has(remoteStream.id);
+                      return (
+                        <div key={remoteStream.id} className="relative group w-full h-full">
+                          <video
+                            autoPlay playsInline muted={false}
+                            className="w-full h-full object-cover"
+                            ref={el => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
+                          />
+                          {isSpeaking && <div className={styles.speakingRing} />}
+                          {isSpeaking && (
+                            <div className={styles.speakingMicBadge} title="Speaking">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.91-3c-.49 0-.9.36-.98.85C16.52 14.2 14.47 16 12 16s-4.52-1.8-4.93-4.15c-.08-.49-.49-.85-.98-.85-.61 0-1.09.54-1 1.14.49 3 2.89 5.35 5.91 5.78V20c0 .55.45 1 1 1s1-.45 1-1v-2.08c3.02-.43 5.42-2.78 5.91-5.78.1-.6-.39-1.14-1-1.14z"/>
+                              </svg>
+                            </div>
+                          )}
+                          <div
+                            className="absolute bottom-2 left-2 text-white px-2 py-1 rounded text-sm"
+                            style={{ background: isSpeaking ? 'rgba(34,197,94,0.75)' : 'rgba(0,0,0,0.5)', transition: 'background 0.3s ease' }}
+                          >
+                            {userNames[remoteStream.id] || `User ${remoteStream.id.slice(-4)}`}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Local Video corner (shown only in grid mode) */}
+                <div className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20">
+                  <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover bg-black" />
+                  <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
+                    {screenSharing ? '🖥 Sharing' : 'You'}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Bottom Controls (always visible) ── */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4">
               <IconButton onClick={toggleVideo} style={{ color: "white" }}>
                 {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
@@ -631,8 +725,16 @@ export default function VideoMeetComponent() {
               <IconButton onClick={toggleAudio} style={{ color: "white" }}>
                 {audioEnabled ? <MicIcon /> : <MicOffIcon />}
               </IconButton>
-              <IconButton onClick={toggleScreenShare} style={{ color: "white" }} className="hidden sm:inline-flex">
+              <IconButton
+                onClick={toggleScreenShare}
+                title={screenSharing ? 'Stop sharing' : 'Share screen'}
+                style={{ color: screenSharing ? '#f97316' : 'white', position: 'relative' }}
+              >
                 {screenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+                {/* Orange dot indicator when sharing */}
+                {screenSharing && (
+                  <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: '50%', background: '#f97316', animation: 'sfuSpeakPulse 1s ease-in-out infinite alternate' }} />
+                )}
               </IconButton>
               <IconButton onClick={endCall} style={{ color: "#ef4444" }}>
                 <CallEndIcon />
@@ -642,7 +744,6 @@ export default function VideoMeetComponent() {
                   <ChatIcon />
                 </IconButton>
               </Badge>
-              {/* Mode badge */}
               <ModeIndicator mode={mode} participantCount={participantCount} />
             </div>
           </div>
