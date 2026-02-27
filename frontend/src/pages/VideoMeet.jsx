@@ -304,7 +304,7 @@ export default function VideoMeetComponent() {
     }
 
     // Navigate away
-    window.location.href = "/";
+    window.location.href = "/home";
   }, []);
 
   /* -------------------- CHAT -------------------- */

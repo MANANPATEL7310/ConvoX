@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
+import { useAuth } from '../contexts/useAuth';
 import {
   Video, Shield, Zap, Users, Globe, Star,
   ArrowRight, Check, ChevronDown, Play, MonitorPlay,
@@ -235,6 +236,8 @@ function FeatureCard({ feature, index, dark }) {
 ═══════════════════════════════════════════════════════════ */
 export default function LandingPage() {
   const { dark, toggle } = useTheme();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
   const { scrollY } = useScroll();
   const navBg = useTransform(
@@ -257,17 +260,36 @@ export default function LandingPage() {
             </motion.span>
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
-              {/* Theme toggle — shared component, reads from ThemeContext */}
               <ThemeToggle />
 
-              <Link to="/auth">
-                <Button variant="ghost" className={`font-medium transition-colors ${t.navText(dark)}`}>Sign In</Button>
-              </Link>
-              <Link to="/auth">
-                <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg hover:scale-105 transition-all px-5">
-                  Get Started <ArrowRight className="ml-1.5 w-4 h-4" />
-                </Button>
-              </Link>
+              {user ? (
+                /* ── Logged-in nav ── */
+                <>
+                  <Link to="/home">
+                    <Button variant="ghost" className={`font-medium transition-colors ${t.navText(dark)}`}>
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <Button
+                    onClick={async () => { await logout(); navigate('/'); }}
+                    className="bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-md hover:shadow-lg hover:scale-105 transition-all px-5"
+                  >
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                /* ── Guest nav ── */
+                <>
+                  <Link to="/auth">
+                    <Button variant="ghost" className={`font-medium transition-colors ${t.navText(dark)}`}>Sign In</Button>
+                  </Link>
+                  <Link to="/auth">
+                    <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg hover:scale-105 transition-all px-5">
+                      Get Started <ArrowRight className="ml-1.5 w-4 h-4" />
+                    </Button>
+                  </Link>
+                </>
+              )}
             </motion.div>
           </div>
         </div>
@@ -325,16 +347,20 @@ export default function LandingPage() {
 
               {/* CTAs */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }} className="flex flex-wrap gap-3">
-                <Link to="/home">
-                  <Button size="lg" className="h-12 px-7 text-base font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-xl hover:shadow-2xl hover:scale-105 transition-all rounded-xl text-white">
-                    Start a Meeting <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
-                <Link to="/auth">
-                  <Button variant="outline" size="lg" className={`h-12 px-7 text-base font-semibold border-2 rounded-xl flex items-center gap-2 transition-all ${t.outlineBtn(dark)}`}>
-                    <Play className="w-4 h-4 text-indigo-500" /> Sign In Free
-                  </Button>
-                </Link>
+                <Button
+                  size="lg"
+                  onClick={() => navigate(user ? '/home' : '/auth')}
+                  className="h-12 px-7 text-base font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-xl hover:shadow-2xl hover:scale-105 transition-all rounded-xl text-white"
+                >
+                  {user ? 'Go to Dashboard' : 'Start a Meeting'} <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+                {!user && (
+                  <Link to="/auth">
+                    <Button variant="outline" size="lg" className={`h-12 px-7 text-base font-semibold border-2 rounded-xl flex items-center gap-2 transition-all ${t.outlineBtn(dark)}`}>
+                      <Play className="w-4 h-4 text-indigo-500" /> Sign In Free
+                    </Button>
+                  </Link>
+                )}
               </motion.div>
 
               {/* Trust row */}
@@ -473,11 +499,13 @@ export default function LandingPage() {
             <div className="relative z-10 flex flex-col items-center gap-6">
               <h2 className="text-3xl sm:text-5xl font-black text-white">Ready to connect?</h2>
               <p className="text-indigo-100 text-lg max-w-md">Join ConvoX today — it's free forever. No credit card required.</p>
-              <Link to="/auth">
-                <Button size="lg" className="h-14 px-10 text-lg font-bold bg-white text-indigo-700 hover:bg-indigo-50 shadow-xl hover:scale-105 transition-all rounded-2xl flex items-center gap-2">
-                  Create Free Account <ArrowRight className="w-5 h-5" />
-                </Button>
-              </Link>
+              <Button
+                size="lg"
+                onClick={() => navigate(user ? '/home' : '/auth')}
+                className="h-14 px-10 text-lg font-bold bg-white text-indigo-700 hover:bg-indigo-50 shadow-xl hover:scale-105 transition-all rounded-2xl flex items-center gap-2"
+              >
+                {user ? 'Go to Dashboard' : 'Create Free Account'} <ArrowRight className="w-5 h-5" />
+              </Button>
               <div className="flex flex-wrap justify-center gap-6 text-sm text-indigo-100">
                 {['No credit card', 'Free unlimited calls', 'Works in your browser'].map(label => (
                   <span key={label} className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-300" />{label}</span>
