@@ -19,6 +19,9 @@ import ModeIndicator from '../components/ModeIndicator';
 import { useMeetingMode } from '../hooks/useMeetingMode';
 import { useActiveSpeaker } from '../hooks/useActiveSpeaker';
 import ShareMeetingCard from '../components/ShareMeetingCard';
+import PreJoinCard from '../components/PreJoinCard';
+import WaitingRoomScreen from '../components/WaitingRoomScreen';
+import HostAdmitPanel from '../components/HostAdmitPanel';
 
 const SERVER_URL = "http://localhost:8000";
 const ICE_SERVERS = {
@@ -51,6 +54,13 @@ export default function VideoMeetComponent() {
   // Host role — only the host sees the "Share" button
   const [isHost, setIsHost] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+
+  // ── Waiting room state ──
+  // phase: 'prejoin' | 'waiting' | 'rejected' | 'in-meeting'
+  const [phase, setPhase] = useState('prejoin');
+  const [waitlist, setWaitlist] = useState([]);     // host only
+  const [showAdmitPanel, setShowAdmitPanel] = useState(false);
+  const prejoinMediaRef = useRef({ videoEnabled: true, audioEnabled: true, stream: null });
 
   const { user } = useAuth();
 
@@ -307,23 +317,91 @@ export default function VideoMeetComponent() {
     }
   }, []);
 
+  /* -------------------- WAITING ROOM HANDLERS -------------------- */
+
+  const handleAdmitUser = useCallback((socketId) => {
+    socketRef.current?.emit('admit-user', { socketId });
+  }, []);
+
+  const handleRejectUser = useCallback((socketId) => {
+    socketRef.current?.emit('reject-user', { socketId });
+  }, []);
+
+  /**
+   * connectToMeeting — called after admitted event (or instantly for host).
+   * Applies pre-chosen media settings then emits join-call.
+   */
+  const connectToMeeting = useCallback(async () => {
+    const { videoEnabled: v, audioEnabled: a, stream } = prejoinMediaRef.current;
+    try {
+      let s = stream;
+      if (!s) {
+        s = await navigator.mediaDevices.getUserMedia({ video: v, audio: a });
+      }
+      localStreamRef.current = s;
+      if (localVideoRef.current) localVideoRef.current.srcObject = s;
+
+      // Apply pre-join toggle state to tracks
+      s.getVideoTracks().forEach(t => { t.enabled = v; });
+      s.getAudioTracks().forEach(t => { t.enabled = a; });
+      setVideoEnabled(v);
+      setAudioEnabled(a);
+
+      socketRef.current?.emit('join-call', window.location.href, username);
+      setPhase('in-meeting');
+    } catch (err) {
+      console.error('connectToMeeting error:', err);
+    }
+  }, [username]);
+
   /* -------------------- SOCKET -------------------- */
 
   useEffect(() => {
-    if (shouldShowLobby) return; // Don't connect until username is set
+    if (shouldShowLobby) return;
+    if (phase === 'prejoin') return; // wait for PreJoinCard "Join" click
 
     const socket = io(SERVER_URL, { secure: false, withCredentials: true });
     socketRef.current = socket;
 
     socket.on('connect', async () => {
       socketIdRef.current = socket.id;
-      
-      try {
-        await getLocalMedia();
-        socket.emit('join-call', window.location.href, username);
-      } catch (error) {
-        console.error('Failed to get initial media:', error);
-      }
+      // Emit waiting-room-join instead of join-call directly
+      socket.emit('waiting-room-join', window.location.href, username);
+    });
+
+    // ── Participant: server confirmed they are in the waiting room ──
+    socket.on('in-waiting-room', () => {
+      setPhase('waiting');
+    });
+
+    // ── User got admitted (host's signal, or auto for first user) ──
+    socket.on('admitted', async () => {
+      await connectToMeeting();
+    });
+
+    // ── User got rejected ──
+    socket.on('rejected', () => {
+      setPhase('rejected');
+    });
+
+    // ── Host: updated waitlist ──
+    socket.on('waiting-room-update', ({ waitlist: wl }) => {
+      setWaitlist(wl);
+      // Auto-open the panel when anyone is waiting (stale-closure safe)
+      if (wl.length > 0) setShowAdmitPanel(true);
+    });
+
+    // ── In-meeting users: notification that someone is waiting ──
+    socket.on('waiting-room-notification', ({ username: wUsername, count }) => {
+      toast(`👋 ${wUsername} is waiting to join`, {
+        description: count > 1 ? `${count} people in waiting room` : undefined,
+        duration: 6000,
+      });
+    });
+
+    socket.on('role-assigned', ({ role }) => {
+      setIsHost(role === 'host');
+      if (role === 'host') toast.success('You are the host of this meeting');
     });
 
     socket.on('user-joined', async (id, clients, usernames) => {
@@ -470,12 +548,6 @@ export default function VideoMeetComponent() {
       setActiveSharingId(sharing ? sharingSocketId : null);
     });
 
-    // ── Host role assignment ──
-    socket.on('role-assigned', ({ role }) => {
-      setIsHost(role === 'host');
-      if (role === 'host') toast.success('You are the host of this meeting');
-    });
-
     socket.on('disconnect', () => {
       toast.error("Lost connection to the meeting server.");
     });
@@ -489,7 +561,7 @@ export default function VideoMeetComponent() {
       Object.values(peersRef.current).forEach((pc) => pc.close());
       peersRef.current = {};
     };
-  }, [shouldShowLobby, username, getLocalMedia, createPeerConnection, addMessage]);
+  }, [shouldShowLobby, username, phase, getLocalMedia, createPeerConnection, addMessage, connectToMeeting]);
 
   /* -------------------- UI -------------------- */
 
@@ -520,7 +592,32 @@ export default function VideoMeetComponent() {
     }
   };
 
-  // Lobby UI
+  // ── Pre-join card (shown to everyone before entering) ──
+  if (!shouldShowLobby && phase === 'prejoin') {
+    return (
+      <PreJoinCard
+        username={username}
+        onJoin={({ videoEnabled: v, audioEnabled: a, stream }) => {
+          prejoinMediaRef.current = { videoEnabled: v, audioEnabled: a, stream };
+          // Trigger socket connect by moving out of 'prejoin' phase
+          setPhase('connecting');
+        }}
+      />
+    );
+  }
+
+  // ── Waiting room (participants wait for host to admit) ──
+  if (!shouldShowLobby && (phase === 'waiting' || phase === 'rejected')) {
+    return (
+      <WaitingRoomScreen
+        username={username}
+        rejected={phase === 'rejected'}
+        onLeave={() => { window.location.href = '/'; }}
+      />
+    );
+  }
+
+  // Lobby UI (unauthenticated users only)
   if (shouldShowLobby) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4 py-8">
@@ -765,6 +862,21 @@ export default function VideoMeetComponent() {
                   <PersonAddIcon />
                 </IconButton>
               )}
+              {/* Waiting room badge — host only */}
+              {isHost && (
+                <Badge badgeContent={waitlist.length} max={99} color="error">
+                  <IconButton
+                    onClick={() => setShowAdmitPanel(p => !p)}
+                    title="Waiting Room"
+                    style={{ color: waitlist.length > 0 ? '#fbbf24' : 'white' }}
+                  >
+                    {/* Person queue icon */}
+                    <svg viewBox="0 0 24 24" style={{ width: 22, height: 22 }} fill="currentColor">
+                      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                    </svg>
+                  </IconButton>
+                </Badge>
+              )}
               <ModeIndicator mode={mode} participantCount={participantCount} />
             </div>
           </div>
@@ -790,6 +902,16 @@ export default function VideoMeetComponent() {
           senderName={username}
           onClose={() => setShowShareCard(false)}
           showJoinBtn={false}
+        />
+      )}
+
+      {/* ── Host Admit Panel ── */}
+      {isHost && showAdmitPanel && (
+        <HostAdmitPanel
+          waitlist={waitlist}
+          onAdmit={handleAdmitUser}
+          onReject={handleRejectUser}
+          onClose={() => setShowAdmitPanel(false)}
         />
       )}
     </div>

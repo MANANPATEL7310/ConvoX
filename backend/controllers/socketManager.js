@@ -14,7 +14,6 @@ export const startRedis = async () => {
 
 /* ─── Hybrid architecture threshold ──────────────────────────────────────
  * ≤ P2P_THRESHOLD → P2P mesh  |  > P2P_THRESHOLD → LiveKit SFU
- * Change this single number to tune the cutover point.
  * ────────────────────────────────────────────────────────────────────── */
 const P2P_THRESHOLD = 4;
 
@@ -27,6 +26,19 @@ async function broadcastMode(io, roomKey, roomPath) {
         io.to(uid).emit("set-mode", { mode, participantCount: count, roomPath });
     }
     return { users, count, mode };
+}
+
+/** Helper: emit the latest waitlist to the host of a room */
+async function broadcastWaitlist(io, path) {
+    const hostKey  = `host:${path}`;
+    const hostId   = await client.get(hostKey);
+    if (!hostId) return;
+
+    const raw      = await client.hGetAll(`waitlist:${path}`);
+    // raw → { socketId: username, ... }
+    const waitlist = Object.entries(raw).map(([socketId, username]) => ({ socketId, username }));
+    io.to(hostId).emit("waiting-room-update", { waitlist });
+    return { hostId, waitlist };
 }
 
 export const connectToSocket = (server) => {
@@ -45,10 +57,99 @@ export const connectToSocket = (server) => {
     io.on("connection", (socket) => {
         console.log("SOMETHING CONNECTED", socket.id);
 
+        /* ════════════════════════════════════════════════════════════════
+         * WAITING ROOM — user signals intent to join before being admitted
+         * ════════════════════════════════════════════════════════════════ */
+        socket.on("waiting-room-join", async (path, username) => {
+            socket.data.roomPath    = path;
+            socket.data.roomKey     = `connections:${path}`;
+            socket.data.pendingPath = path;     // mark as "in waiting room"
+            socket.data.username    = username || `User ${socket.id.slice(-4)}`;
+
+            if (username) socketUsernames.set(socket.id, username);
+
+            const hostKey    = `host:${path}`;
+            const currentHost = await client.get(hostKey);
+
+            if (!currentHost) {
+                // ── No host yet: this user becomes host, skip waiting room ──
+                console.log(`Room ${path}: ${socket.id} is first → HOST, admitted instantly`);
+                socket.data.pendingPath = null;
+                io.to(socket.id).emit("admitted", { asHost: true });
+            } else {
+                // ── Room has a host: add to waitlist ──
+                const wlKey = `waitlist:${path}`;
+                await client.hSet(wlKey, socket.id, socket.data.username);
+
+                // Tell this user they are in the waiting room
+                io.to(socket.id).emit("in-waiting-room");
+
+                // Push waitlist update to the host
+                const { waitlist } = await broadcastWaitlist(io, path);
+
+                // Toast notification to all in-meeting users
+                const roomUsers = await client.sMembers(`connections:${path}`);
+                roomUsers.forEach(uid => {
+                    io.to(uid).emit("waiting-room-notification", {
+                        username: socket.data.username,
+                        count:    waitlist.length,
+                    });
+                });
+
+                console.log(`Room ${path}: ${socket.id} (${socket.data.username}) is WAITING`);
+            }
+        });
+
+        /* ── Host admits a waiting user ── */
+        socket.on("admit-user", async ({ socketId }) => {
+            const path   = socket.data.roomPath;
+            const hostKey = `host:${path}`;
+            const hostId  = await client.get(hostKey);
+
+            // Security: only the current host can admit
+            if (hostId !== socket.id) {
+                return io.to(socket.id).emit("error-event", { message: "Only the host can admit users." });
+            }
+
+            // Remove from waitlist
+            await client.hDel(`waitlist:${path}`, socketId);
+
+            // Tell the admitted user they can join
+            io.to(socketId).emit("admitted", { asHost: false });
+
+            // Update waitlist for host
+            await broadcastWaitlist(io, path);
+
+            console.log(`Room ${path}: HOST admitted ${socketId}`);
+        });
+
+        /* ── Host rejects/removes a waiting user ── */
+        socket.on("reject-user", async ({ socketId }) => {
+            const path    = socket.data.roomPath;
+            const hostKey = `host:${path}`;
+            const hostId  = await client.get(hostKey);
+
+            if (hostId !== socket.id) return;
+
+            // Remove from waitlist
+            await client.hDel(`waitlist:${path}`, socketId);
+
+            // Tell the rejected user
+            io.to(socketId).emit("rejected");
+
+            // Update waitlist for host
+            await broadcastWaitlist(io, path);
+
+            console.log(`Room ${path}: HOST rejected ${socketId}`);
+        });
+
+        /* ════════════════════════════════════════════════════════════════
+         * JOIN — called when user is admitted (host directly, or after admit)
+         * ════════════════════════════════════════════════════════════════ */
         socket.on("join-call", async (path, username) => {
-            // Cache room path on socket.data — avoids repeated Redis scans later
             socket.data.roomKey  = `connections:${path}`;
             socket.data.roomPath = path;
+            socket.data.pendingPath = null;
 
             if (username) socketUsernames.set(socket.id, username);
 
@@ -67,6 +168,7 @@ export const connectToSocket = (server) => {
                 currentHost = socket.id;
                 console.log(`Room ${path}: ${socket.id} is now the HOST`);
             }
+
             // Tell the joining user their role
             io.to(socket.id).emit("role-assigned", {
                 role: socket.id === currentHost ? 'host' : 'participant',
@@ -79,8 +181,8 @@ export const connectToSocket = (server) => {
             }
 
             // Notify everyone: new peer list + current mode
-            const previousCount = participantCount - 1;
             const mode = participantCount <= P2P_THRESHOLD ? 'p2p' : 'sfu';
+            const previousCount = participantCount - 1;
             const justCrossedThreshold = previousCount <= P2P_THRESHOLD && participantCount > P2P_THRESHOLD;
 
             for (const uid of users) {
@@ -88,7 +190,6 @@ export const connectToSocket = (server) => {
                 io.to(uid).emit("set-mode", { mode, participantCount, roomPath: path });
             }
 
-            // Trigger graceful SFU upgrade when threshold is crossed
             if (justCrossedThreshold) {
                 console.log(`Room ${path}: threshold crossed (${participantCount} users) → SFU`);
                 for (const uid of users) {
@@ -102,6 +203,11 @@ export const connectToSocket = (server) => {
                 const parsed = JSON.parse(msg);
                 io.to(socket.id).emit("chat-message", parsed.data, parsed.sender, parsed["socket-id-sender"]);
             }
+
+            // If this newly joined user is the host, send them the current waitlist
+            if (socket.id === currentHost) {
+                await broadcastWaitlist(io, path);
+            }
         });
 
         socket.on("signal", async (toId, message) => {
@@ -109,7 +215,6 @@ export const connectToSocket = (server) => {
         });
 
         socket.on("chat-message", async (data, sender) => {
-            // Use cached room path — O(1) instead of scanning all Redis keys
             const roomKey  = socket.data.roomKey;
             const roomPath = socket.data.roomPath;
 
@@ -122,11 +227,10 @@ export const connectToSocket = (server) => {
             await client.rPush(`messages:${roomPath}`, JSON.stringify(msgObject));
 
             const users = await client.sMembers(roomKey);
-            console.log(`Broadcasting chat to ${users.length} users in room ${roomPath}`);
             users.forEach(uid => io.to(uid).emit("chat-message", data, sender, socket.id));
         });
 
-        /* ── Typing indicators (O(1) using cached room) ── */
+        /* ── Typing indicators ── */
         const broadcastToRoomExcludeSelf = async (eventName, payload) => {
             const roomKey = socket.data.roomKey;
             if (!roomKey) return;
@@ -156,15 +260,20 @@ export const connectToSocket = (server) => {
         socket.on("disconnect", async () => {
             socketUsernames.delete(socket.id);
 
-            const roomKey  = socket.data.roomKey;
-            const roomPath = socket.data.roomPath;
+            const roomKey   = socket.data.roomKey;
+            const roomPath  = socket.data.roomPath;
+
+            // If they were in the waiting room — clean up waitlist
+            if (roomPath) {
+                await client.hDel(`waitlist:${roomPath}`, socket.id);
+                await broadcastWaitlist(io, roomPath);
+            }
 
             if (!roomKey) return; // disconnected before joining a room
 
             await client.sRem(roomKey, socket.id);
             const remaining = await client.sMembers(roomKey);
 
-            // Notify remaining users that this peer left
             remaining.forEach(uid => io.to(uid).emit("user-left", socket.id));
 
             // ── Host promotion: if the leaving user was host, promote next ──
@@ -174,17 +283,19 @@ export const connectToSocket = (server) => {
                 const newHost = remaining[0];
                 await client.set(hostKey, newHost);
                 io.to(newHost).emit("role-assigned", { role: 'host' });
+                // Send the new host the current waitlist
+                await broadcastWaitlist(io, roomPath);
                 console.log(`Room ${roomPath}: host left → ${newHost} promoted`);
             }
 
-            // Re-broadcast set-mode so participant count + mode badge updates
             if (remaining.length > 0) {
                 await broadcastMode(io, roomKey, roomPath);
             } else {
-                // Empty room — clean up Redis (including host key)
+                // Empty room — clean up all Redis keys
                 await client.del(roomKey);
                 await client.del(`messages:${roomPath}`);
                 await client.del(hostKey);
+                await client.del(`waitlist:${roomPath}`);
             }
         });
     });
