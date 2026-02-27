@@ -185,61 +185,126 @@ export default function PreJoinCard({ username, onJoin }) {
             {/* Toggle controls */}
             <div className="space-y-3">
               {/* Video toggle */}
-              <div className={`flex items-center justify-between p-4 rounded-2xl border transition-colors ${
-                dark ? 'bg-gray-800/60 border-white/[0.08]' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    videoEnabled
-                      ? 'bg-indigo-500/20 text-indigo-400'
-                      : dark ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'
-                  }`}>
-                    {videoEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              <div
+                className="relative flex items-center justify-between p-4 rounded-2xl transition-all duration-200 overflow-hidden"
+                style={{
+                  background: dark
+                    ? (videoEnabled ? 'rgba(99,102,241,0.1)' : 'rgba(31,41,55,0.6)')
+                    : (videoEnabled ? 'rgba(238,242,255,0.95)' : '#f9fafb'),
+                  border: dark
+                    ? (videoEnabled ? '1px solid rgba(99,102,241,0.28)' : '1px solid rgba(255,255,255,0.06)')
+                    : (videoEnabled ? '1.5px solid #c7d2fe' : '1px solid #e5e7eb'),
+                  boxShadow: videoEnabled ? (dark ? '0 0 0 1px rgba(99,102,241,0.12)' : '0 0 0 3px rgba(99,102,241,0.07)') : 'none',
+                }}
+              >
+                {/* Ripple flash on toggle */}
+                <motion.div
+                  key={`vr-${videoEnabled}`}
+                  initial={{ opacity: 0.4, scale: 0.8 }}
+                  animate={{ opacity: 0, scale: 1.8 }}
+                  transition={{ duration: 0.5 }}
+                  style={{
+                    position: 'absolute', inset: 0, borderRadius: 16, pointerEvents: 'none',
+                    background: videoEnabled ? 'rgba(99,102,241,0.18)' : 'rgba(239,68,68,0.1)',
+                  }}
+                />
+                <div className="flex items-center gap-3 relative z-10">
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: videoEnabled ? (dark ? 'rgba(99,102,241,0.28)' : '#e0e7ff') : (dark ? '#374151' : '#f3f4f6'),
+                    color: videoEnabled ? (dark ? '#a5b4fc' : '#4f46e5') : (dark ? '#6b7280' : '#9ca3af'),
+                    transition: 'all 0.2s',
+                  }}>
+                    {videoEnabled ? <Video style={{ width: 18, height: 18 }} /> : <VideoOff style={{ width: 18, height: 18 }} />}
                   </div>
                   <div>
-                    <p className={`text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>Camera</p>
-                    <p className={`text-xs ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: dark ? '#f9fafb' : '#111827', margin: 0 }}>Camera</p>
+                    <p style={{ fontSize: 11, margin: 0, color: videoEnabled ? (dark ? '#818cf8' : '#6366f1') : (dark ? '#6b7280' : '#9ca3af') }}>
                       {videoEnabled ? 'On' : 'Off'}
                     </p>
                   </div>
                 </div>
-                {/* Toggle switch */}
-                <button onClick={toggleVideo}
-                  className={`w-12 h-6 rounded-full transition-all duration-200 relative ${
-                    videoEnabled ? 'bg-indigo-500' : dark ? 'bg-gray-700' : 'bg-gray-300'
-                  }`}>
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
-                    videoEnabled ? 'left-6' : 'left-0.5'
-                  }`} />
+                <button
+                  onClick={toggleVideo}
+                  style={{
+                    position: 'relative', width: 50, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer', flexShrink: 0,
+                    background: videoEnabled ? '#6366f1' : (dark ? '#374151' : '#cbd5e1'),
+                    transition: 'background 0.25s',
+                    boxShadow: videoEnabled ? '0 0 0 3px rgba(99,102,241,0.22)' : 'none',
+                  }}
+                >
+                  <motion.div
+                    layout
+                    transition={{ type: 'spring', stiffness: 700, damping: 32 }}
+                    style={{
+                      position: 'absolute', top: 4,
+                      left: videoEnabled ? 26 : 4,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                    }}
+                  />
                 </button>
               </div>
 
               {/* Audio toggle */}
-              <div className={`flex items-center justify-between p-4 rounded-2xl border transition-colors ${
-                dark ? 'bg-gray-800/60 border-white/[0.08]' : 'bg-gray-50 border-gray-200'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    audioEnabled
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : dark ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'
-                  }`}>
-                    {audioEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+              <div
+                className="relative flex items-center justify-between p-4 rounded-2xl transition-all duration-200 overflow-hidden"
+                style={{
+                  background: dark
+                    ? (audioEnabled ? 'rgba(16,185,129,0.09)' : 'rgba(31,41,55,0.6)')
+                    : (audioEnabled ? 'rgba(236,253,245,0.95)' : '#f9fafb'),
+                  border: dark
+                    ? (audioEnabled ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(255,255,255,0.06)')
+                    : (audioEnabled ? '1.5px solid #a7f3d0' : '1px solid #e5e7eb'),
+                  boxShadow: audioEnabled ? (dark ? '0 0 0 1px rgba(16,185,129,0.1)' : '0 0 0 3px rgba(16,185,129,0.07)') : 'none',
+                }}
+              >
+                {/* Ripple flash on toggle */}
+                <motion.div
+                  key={`ar-${audioEnabled}`}
+                  initial={{ opacity: 0.4, scale: 0.8 }}
+                  animate={{ opacity: 0, scale: 1.8 }}
+                  transition={{ duration: 0.5 }}
+                  style={{
+                    position: 'absolute', inset: 0, borderRadius: 16, pointerEvents: 'none',
+                    background: audioEnabled ? 'rgba(16,185,129,0.18)' : 'rgba(239,68,68,0.1)',
+                  }}
+                />
+                <div className="flex items-center gap-3 relative z-10">
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: audioEnabled ? (dark ? 'rgba(16,185,129,0.22)' : '#d1fae5') : (dark ? '#374151' : '#f3f4f6'),
+                    color: audioEnabled ? (dark ? '#6ee7b7' : '#059669') : (dark ? '#6b7280' : '#9ca3af'),
+                    transition: 'all 0.2s',
+                  }}>
+                    {audioEnabled ? <Mic style={{ width: 18, height: 18 }} /> : <MicOff style={{ width: 18, height: 18 }} />}
                   </div>
                   <div>
-                    <p className={`text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>Microphone</p>
-                    <p className={`text-xs ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: dark ? '#f9fafb' : '#111827', margin: 0 }}>Microphone</p>
+                    <p style={{ fontSize: 11, margin: 0, color: audioEnabled ? (dark ? '#34d399' : '#059669') : (dark ? '#6b7280' : '#9ca3af') }}>
                       {audioEnabled ? 'On — speak to test' : 'Off'}
                     </p>
                   </div>
                 </div>
-                <button onClick={toggleAudio}
-                  className={`w-12 h-6 rounded-full transition-all duration-200 relative ${
-                    audioEnabled ? 'bg-emerald-500' : dark ? 'bg-gray-700' : 'bg-gray-300'
-                  }`}>
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${
-                    audioEnabled ? 'left-6' : 'left-0.5'
-                  }`} />
+                <button
+                  onClick={toggleAudio}
+                  style={{
+                    position: 'relative', width: 50, height: 28, borderRadius: 14, border: 'none', cursor: 'pointer', flexShrink: 0,
+                    background: audioEnabled ? '#10b981' : (dark ? '#374151' : '#cbd5e1'),
+                    transition: 'background 0.25s',
+                    boxShadow: audioEnabled ? '0 0 0 3px rgba(16,185,129,0.22)' : 'none',
+                  }}
+                >
+                  <motion.div
+                    layout
+                    transition={{ type: 'spring', stiffness: 700, damping: 32 }}
+                    style={{
+                      position: 'absolute', top: 4,
+                      left: audioEnabled ? 26 : 4,
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                    }}
+                  />
                 </button>
               </div>
             </div>

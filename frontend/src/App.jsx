@@ -28,7 +28,14 @@ function App() {
                       <Route path='/:url' element={<VideoMeetComponent />} />
                   </Route>
               </Routes>
-              <Toaster position="top-right" richColors />
+              <Toaster
+                position="top-right"
+                richColors
+                expand={true}
+                closeButton
+                visibleToasts={9}
+                duration={5000}
+              />
           </AuthProvider>
        </Router>
        </ThemeProvider>
