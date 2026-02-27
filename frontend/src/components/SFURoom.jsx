@@ -79,6 +79,7 @@ function VideoGrid() {
 
 export default function SFURoom({
   roomName, username, onEndCall, showChat, onToggleChat, newMessages, chatPanel,
+  isHost, waitlistCount, onToggleShareCard, onToggleAdmitPanel
 }) {
   const [token,  setToken]  = useState(null);
   const [wsUrl,  setWsUrl]  = useState(null);
@@ -165,7 +166,7 @@ export default function SFURoom({
           <VideoGrid />
         </div>
 
-        {/* Bottom control bar — LiveKit built-in + custom End/Chat */}
+        {/* Bottom control bar — LiveKit built-in + custom End/Chat/Host settings */}
         <div style={{
           position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
           display: 'flex', alignItems: 'center', gap: 8, zIndex: 20,
@@ -189,6 +190,34 @@ export default function SFURoom({
               <ChatIcon />
             </IconButton>
           </Badge>
+
+          {/* Share button — host only */}
+          {isHost && (
+            <IconButton
+              onClick={onToggleShareCard}
+              title="Invite participants"
+              style={{ color: '#a78bfa' }}
+            >
+              <PersonAddIcon />
+            </IconButton>
+          )}
+
+          {/* Waiting room badge — host only */}
+          {isHost && (
+            <Badge badgeContent={waitlistCount} max={99} color="error">
+              <IconButton
+                onClick={onToggleAdmitPanel}
+                title="Waiting Room"
+                style={{ color: waitlistCount > 0 ? '#fbbf24' : 'white' }}
+              >
+                {/* Person queue icon */}
+                <svg viewBox="0 0 24 24" style={{ width: 22, height: 22 }} fill="currentColor">
+                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+              </IconButton>
+            </Badge>
+          )}
+
         </div>
       </LiveKitRoom>
 

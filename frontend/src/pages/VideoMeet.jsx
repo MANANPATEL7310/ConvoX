@@ -56,17 +56,36 @@ export default function VideoMeetComponent() {
   const [showShareCard, setShowShareCard] = useState(false);
 
   // ── Waiting room state ──
-  // phase: 'prejoin' | 'waiting' | 'rejected' | 'in-meeting'
-  const [phase, setPhase] = useState('prejoin');
+  // phase: 'prejoin' | 'connecting' | 'waiting' | 'rejected' | 'in-meeting'
+  // Initialise from sessionStorage so page refresh doesn't show PreJoinCard again
+  const [phase, setPhase] = useState(() => {
+    const stored = sessionStorage.getItem(`convox-phase:${window.location.href}`);
+    // If they were mid-meeting or connecting, skip PreJoinCard
+    return (stored === 'connecting' || stored === 'in-meeting') ? 'connecting' : 'prejoin';
+  });
   const [waitlist, setWaitlist] = useState([]);     // host only
   const [showAdmitPanel, setShowAdmitPanel] = useState(false);
   const prejoinMediaRef = useRef({ videoEnabled: true, audioEnabled: true, stream: null });
+  // Always-current username ref (avoids stale closures in socket callbacks)
+  const usernameRef = useRef('');
+  // Guards so the socket is created exactly once
+  const socketCreatedRef         = useRef(false);
+  const intentionalDisconnectRef = useRef(false);
 
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // Use derived state for display username
   const username = user?.username || lobbyUsername;
   const shouldShowLobby = !user?.username && !isConnected;
+
+  // Keep usernameRef always current so socket callbacks never have a stale value
+  useEffect(() => { usernameRef.current = username; }, [username]);
+
+  // Persist phase transitions to sessionStorage
+  const updatePhase = useCallback((next) => {
+    setPhase(next);
+    sessionStorage.setItem(`convox-phase:${window.location.href}`, next);
+  }, []);
 
   // ── Hybrid architecture mode (P2P | SFU) ──
   const { mode, participantCount, upgrading } = useMeetingMode(socketRef);
@@ -289,20 +308,19 @@ export default function VideoMeetComponent() {
   }, [screenSharing, startScreenShare, stopScreenShare]);
 
   const endCall = useCallback(() => {
+    // Clear session phase so next visit shows PreJoinCard fresh
+    sessionStorage.removeItem(`convox-phase:${window.location.href}`);
     // Stop all tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
     }
-
     // Close all peer connections
     Object.values(peersRef.current).forEach(pc => pc.close());
     peersRef.current = {};
-
     // Disconnect socket
     if (socketRef.current) {
       socketRef.current.disconnect();
     }
-
     // Navigate away
     window.location.href = "/home";
   }, []);
@@ -332,236 +350,240 @@ export default function VideoMeetComponent() {
    * Applies pre-chosen media settings then emits join-call.
    */
   const connectToMeeting = useCallback(async () => {
-    const { videoEnabled: v, audioEnabled: a, stream } = prejoinMediaRef.current;
+    const { videoEnabled: v, audioEnabled: a } = prejoinMediaRef.current;
+    const currentUsername = usernameRef.current;
     try {
-      let s = stream;
-      if (!s) {
-        s = await navigator.mediaDevices.getUserMedia({ video: v, audio: a });
-      }
+      // Always request FRESH media — the PreJoinCard stream is stopped by its own cleanup
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: v,
+        audio: a,
+      });
       localStreamRef.current = s;
       if (localVideoRef.current) localVideoRef.current.srcObject = s;
 
-      // Apply pre-join toggle state to tracks
+      // Apply toggle state
       s.getVideoTracks().forEach(t => { t.enabled = v; });
       s.getAudioTracks().forEach(t => { t.enabled = a; });
       setVideoEnabled(v);
       setAudioEnabled(a);
 
-      socketRef.current?.emit('join-call', window.location.href, username);
-      setPhase('in-meeting');
+      socketRef.current?.emit('join-call', window.location.href, currentUsername);
+      updatePhase('in-meeting');
     } catch (err) {
       console.error('connectToMeeting error:', err);
+      // Even on error, emit join-call so the meeting proceeds
+      socketRef.current?.emit('join-call', window.location.href, currentUsername);
+      updatePhase('in-meeting');
     }
-  }, [username]);
+  }, [updatePhase]);
 
-  /* -------------------- SOCKET -------------------- */
+  /* ─── Stable function refs (always current, no stale closure issues) ─── */
+  const connectToMeetingRef   = useRef(null);
+  const addMessageRef         = useRef(null);
+  const createPeerConnRef     = useRef(null);
+  const getLocalMediaRef      = useRef(null);
+  const updatePhaseRef        = useRef(null);
 
+  // Keep refs in sync every render (stable assignments, no extra effects needed)
+  connectToMeetingRef.current  = connectToMeeting;
+  addMessageRef.current        = addMessage;
+  createPeerConnRef.current    = createPeerConnection;
+  getLocalMediaRef.current     = getLocalMedia;
+  updatePhaseRef.current       = updatePhase;
+
+  /* ─── Trigger flag: set true exactly once when we should create the socket ─── */
+  const socketReadyRef = useRef(false);
   useEffect(() => {
-    if (shouldShowLobby) return;
-    if (phase === 'prejoin') return; // wait for PreJoinCard "Join" click
+    if (!authLoading && !shouldShowLobby && phase !== 'prejoin') {
+      socketReadyRef.current = true;
+    }
+  }, [authLoading, shouldShowLobby, phase]);
 
-    const socket = io(SERVER_URL, { secure: false, withCredentials: true });
-    socketRef.current = socket;
+  /* ─── Socket — created ONCE on mount, reads all live state via refs ─── */
+  useEffect(() => {
+    // Poll briefly until auth loads and user leaves prejoin
+    // This avoids having authLoading/phase in deps (which would recreate the socket)
+    let timeout;
+    const tryConnect = () => {
+      console.log('[DEBUG] tryConnect called. created:', socketCreatedRef.current, 'ready:', socketReadyRef.current, 'phase:', phase);
+      if (socketCreatedRef.current) return;  // already created
+      if (!socketReadyRef.current) {
+        timeout = setTimeout(tryConnect, 150);
+        return;
+      }
+      socketCreatedRef.current = true;
+      console.log('[DEBUG] Creating socket instance...');
 
-    socket.on('connect', async () => {
-      socketIdRef.current = socket.id;
-      // Emit waiting-room-join instead of join-call directly
-      socket.emit('waiting-room-join', window.location.href, username);
-    });
-
-    // ── Participant: server confirmed they are in the waiting room ──
-    socket.on('in-waiting-room', () => {
-      setPhase('waiting');
-    });
-
-    // ── User got admitted (host's signal, or auto for first user) ──
-    socket.on('admitted', async () => {
-      await connectToMeeting();
-    });
-
-    // ── User got rejected ──
-    socket.on('rejected', () => {
-      setPhase('rejected');
-    });
-
-    // ── Host: updated waitlist ──
-    socket.on('waiting-room-update', ({ waitlist: wl }) => {
-      setWaitlist(wl);
-      // Auto-open the panel when anyone is waiting (stale-closure safe)
-      if (wl.length > 0) setShowAdmitPanel(true);
-    });
-
-    // ── In-meeting users: notification that someone is waiting ──
-    socket.on('waiting-room-notification', ({ username: wUsername, count }) => {
-      toast(`👋 ${wUsername} is waiting to join`, {
-        description: count > 1 ? `${count} people in waiting room` : undefined,
-        duration: 6000,
+      const socket = io(SERVER_URL, {
+        secure: false,
+        withCredentials: true,
+        reconnection: false,  // disable auto-reconnect to prevent ghost sockets
       });
-    });
+      socketRef.current = socket;
 
-    socket.on('role-assigned', ({ role }) => {
-      setIsHost(role === 'host');
-      if (role === 'host') toast.success('You are the host of this meeting');
-    });
+      socket.on('connect', () => {
+        console.log('[DEBUG] Socket connected. ID:', socket.id, 'Emitting waiting-room-join');
+        socketIdRef.current = socket.id;
+        socket.emit('waiting-room-join', window.location.href, usernameRef.current);
+      });
 
-    socket.on('user-joined', async (id, clients, usernames) => {
-      // Update usernames
-      if (usernames) {
-        setUserNames(usernames);
-      }
+      socket.on('in-waiting-room', () => {
+        console.log('[DEBUG] Received in-waiting-room event. Updating phase to waiting.');
+        updatePhaseRef.current('waiting');
+      });
 
-      for (const clientId of clients) {
-        if (clientId !== socket.id && !peersRef.current[clientId]) {
-          const pc = createPeerConnection(clientId);
-          await getLocalMedia();
-          const stream = localStreamRef.current;
+      socket.on('admitted', async (data) => {
+        console.log('[DEBUG] Received admitted event:', data);
+        await connectToMeetingRef.current();
+        console.log('[DEBUG] Finished connectToMeeting()');
+      });
 
-          // Check for existing tracks to prevent duplicates
-          const existingKinds = pc.getSenders().map(s => s.track?.kind).filter(Boolean);
-          
-          stream.getTracks().forEach((track) => {
-            if (!existingKinds.includes(track.kind)) {
-              pc.addTrack(track, stream);
-            }
-          });
+      socket.on('rejected', () => {
+        updatePhaseRef.current('rejected');
+      });
 
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
+      socket.on('waiting-room-update', ({ waitlist: wl }) => {
+        setWaitlist(wl);
+        if (wl.length > 0) setShowAdmitPanel(true);
+      });
 
-          socket.emit('signal', clientId, JSON.stringify({ sdp: pc.localDescription }));
-        }
-      }
-    });
+      socket.on('waiting-room-notification', ({ username: wUsername, count }) => {
+        toast(`👋 ${wUsername} is waiting to join`, {
+          description: count > 1 ? `${count} people in waiting room` : undefined,
+          duration: 6000,
+        });
+      });
 
-    socket.on('signal', async (fromId, message) => {
-      try {
-        console.log('Received signal from:', fromId, message);
-        const data = typeof message === 'string' ? JSON.parse(message) : message;
-        let pc = peersRef.current[fromId];
-        if (!pc) {
-          console.log('Creating new peer connection for:', fromId);
-          pc = createPeerConnection(fromId);
-        }
+      socket.on('role-assigned', ({ role }) => {
+        setIsHost(role === 'host');
+        if (role === 'host') toast.success('You are now the host');
+      });
 
-        if (data.sdp) {
-          console.log('Processing SDP:', data.sdp.type, 'State:', pc.signalingState);
-          // Check if we can set remote description based on current state
-          if (pc.signalingState === 'stable' && data.sdp.type === 'offer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            console.log('Remote description set for offer');
-            
-            // Process any queued ICE candidates
-            if (pc.iceCandidatesQueue && pc.iceCandidatesQueue.length > 0) {
-              for (const candidate of pc.iceCandidatesQueue) {
-                await pc.addIceCandidate(candidate);
-              }
-              pc.iceCandidatesQueue = [];
-            }
-            
-            await getLocalMedia();
+      socket.on('user-joined', async (id, clients, usernames) => {
+        if (usernames) setUserNames(usernames);
+        
+        // P2P Mesh Optimization: To prevent "glare" (both sides sending an offer at the same time),
+        // we use a deterministic rule based on socket.id comparison.
+        // Only the peer with the lexicographically smaller ID initiates the offer.
+        for (const clientId of clients) {
+          if (clientId !== socket.id && !peersRef.current[clientId]) {
+            const pc = createPeerConnRef.current(clientId);
+            await getLocalMediaRef.current();
             const stream = localStreamRef.current;
-            
-            // Check for existing tracks to prevent duplicates
-            const existingKinds = pc.getSenders().map(s => s.track?.kind).filter(Boolean);
-            
-            stream.getTracks().forEach((track) => {
-              if (!existingKinds.includes(track.kind)) {
-                pc.addTrack(track, stream);
-              }
-            });
-
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            console.log('Answer created and set');
-
-            socket.emit('signal', fromId, JSON.stringify({ sdp: pc.localDescription }));
-          } else if (pc.signalingState === 'have-remote-offer' && data.sdp.type === 'answer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            console.log('Remote description set for answer');
-            
-            // Process any queued ICE candidates
-            if (pc.iceCandidatesQueue && pc.iceCandidatesQueue.length > 0) {
-              for (const candidate of pc.iceCandidatesQueue) {
-                await pc.addIceCandidate(candidate);
-              }
-              pc.iceCandidatesQueue = [];
+            if (stream) {
+              stream.getTracks().forEach(track => {
+                const existing = pc.getSenders().find(s => s.track === track);
+                if (!existing) pc.addTrack(track, stream);
+              });
             }
-          } else if (pc.signalingState === 'have-local-offer' && data.sdp.type === 'answer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            console.log('Remote description set for answer (have-local-offer state)');
-            
-            // Process any queued ICE candidates
-            if (pc.iceCandidatesQueue && pc.iceCandidatesQueue.length > 0) {
-              for (const candidate of pc.iceCandidatesQueue) {
-                await pc.addIceCandidate(candidate);
-              }
-              pc.iceCandidatesQueue = [];
+
+            // Deterministic initiator logic
+            if (socket.id < clientId) {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              socket.emit('signal', clientId, JSON.stringify({ sdp: pc.localDescription }));
             }
-          } else if (pc.signalingState === 'stable' && data.sdp.type === 'answer') {
-            // Ignore answer when in stable state (already processed)
-            console.log('Ignoring answer in stable state');
-          } else {
-            console.log('Ignoring SDP', data.sdp.type, 'in state', pc.signalingState);
+            // If socket.id > clientId, we just wait to receive their offer via `socket.on('signal')`.
           }
         }
-
-        if (data.ice) {
-          // Only add ICE candidates if we have a remote description
-          if (pc.remoteDescription) {
-            await pc.addIceCandidate(new RTCIceCandidate(data.ice));
-            console.log('ICE candidate added');
-          } else {
-            // Queue ICE candidates if remote description is not set yet
-            if (!pc.iceCandidatesQueue) {
-              pc.iceCandidatesQueue = [];
-            }
-            pc.iceCandidatesQueue.push(new RTCIceCandidate(data.ice));
-            console.log('ICE candidate queued');
-          }
-        }
-      } catch (error) {
-        console.error('Error handling signal:', error);
-      }
-    });
-
-    socket.on('user-left', (socketId) => {
-      const pc = peersRef.current[socketId];
-      if (pc) {
-        pc.close();
-        delete peersRef.current[socketId];
-      }
-      
-      setRemoteStreams((prev) => prev.filter((v) => v.id !== socketId));
-      
-      // Remove username
-      setUserNames(prev => {
-        const newNames = { ...prev };
-        delete newNames[socketId];
-        return newNames;
       });
-    });
 
-    socket.on('chat-message', addMessage);
+      socket.on('signal', async (fromId, message) => {
+        try {
+          const data = typeof message === 'string' ? JSON.parse(message) : message;
+          let pc = peersRef.current[fromId];
+          if (!pc) pc = createPeerConnRef.current(fromId);
 
-    // ── Screen share presence: update layout when a remote peer starts/stops sharing ──
-    socket.on('screen-share-toggled', ({ sharingSocketId, sharing }) => {
-      setActiveSharingId(sharing ? sharingSocketId : null);
-    });
+          if (data.sdp) {
+            if (data.sdp.type === 'offer') {
+               // Only process offer if we aren't in the middle of our own
+               // (Handle glare if needed, but simple state check prevents most errors)
+              if (pc.signalingState !== 'stable') {
+                await Promise.all([
+                  pc.setLocalDescription({type: "rollback"}),
+                  pc.setRemoteDescription(new RTCSessionDescription(data.sdp))
+                ]);
+              } else {
+                await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+              }
 
-    socket.on('disconnect', () => {
-      toast.error("Lost connection to the meeting server.");
-    });
+              if (pc.iceCandidatesQueue?.length) {
+                for (const c of pc.iceCandidatesQueue) await pc.addIceCandidate(c);
+                pc.iceCandidatesQueue = [];
+              }
 
-    /* ---------------- CLEANUP ---------------- */
+              // Add our local tracks BEFORE creating the answer
+              await getLocalMediaRef.current();
+              const stream = localStreamRef.current;
+              if (stream) {
+                stream.getTracks().forEach(track => {
+                   const existing = pc.getSenders().find(s => s.track === track);
+                   if (!existing) pc.addTrack(track, stream);
+                });
+              }
+
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              socket.emit('signal', fromId, JSON.stringify({ sdp: pc.localDescription }));
+
+            } else if (data.sdp.type === 'answer') {
+              if (pc.signalingState === 'have-local-offer') {
+                 await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                 if (pc.iceCandidatesQueue?.length) {
+                   for (const c of pc.iceCandidatesQueue) await pc.addIceCandidate(c);
+                   pc.iceCandidatesQueue = [];
+                 }
+              }
+            }
+          } else if (data.ice) {
+            if (pc.remoteDescription) {
+              await pc.addIceCandidate(new RTCIceCandidate(data.ice));
+            } else {
+              pc.iceCandidatesQueue = pc.iceCandidatesQueue || [];
+              pc.iceCandidatesQueue.push(new RTCIceCandidate(data.ice));
+            }
+          }
+        } catch (err) {
+          console.error('Signal error:', err);
+        }
+      });
+
+      socket.on('user-left', (socketId) => {
+        const pc = peersRef.current[socketId];
+        if (pc) { pc.close(); delete peersRef.current[socketId]; }
+        setRemoteStreams(prev => prev.filter(v => v.id !== socketId));
+        setUserNames(prev => { const n = { ...prev }; delete n[socketId]; return n; });
+      });
+
+      socket.on('chat-message', (data, sender, sid) => addMessageRef.current(data, sender, sid));
+
+      socket.on('screen-share-toggled', ({ sharingSocketId, sharing }) => {
+        setActiveSharingId(sharing ? sharingSocketId : null);
+      });
+
+      socket.on('disconnect', () => {
+        if (!intentionalDisconnectRef.current) {
+          toast.error('Lost connection to the meeting server.');
+        }
+      });
+    };
+
+    tryConnect();
+
     return () => {
-      socket?.disconnect();
+      // CLEAR the creation flag on unmount so StrictMode remounts can recreate the socket
+      socketCreatedRef.current = false;
+      clearTimeout(timeout);
+      intentionalDisconnectRef.current = true;
+      socketRef.current?.disconnect();
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current.getTracks().forEach(t => t.stop());
       }
-      Object.values(peersRef.current).forEach((pc) => pc.close());
+      Object.values(peersRef.current).forEach(pc => pc.close());
       peersRef.current = {};
     };
-  }, [shouldShowLobby, username, phase, getLocalMedia, createPeerConnection, addMessage, connectToMeeting]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* -------------------- UI -------------------- */
 
@@ -597,10 +619,10 @@ export default function VideoMeetComponent() {
     return (
       <PreJoinCard
         username={username}
-        onJoin={({ videoEnabled: v, audioEnabled: a, stream }) => {
-          prejoinMediaRef.current = { videoEnabled: v, audioEnabled: a, stream };
-          // Trigger socket connect by moving out of 'prejoin' phase
-          setPhase('connecting');
+        onJoin={({ videoEnabled: v, audioEnabled: a }) => {
+          // Only store toggle prefs — stream is stopped by PreJoinCard cleanup
+          prejoinMediaRef.current = { videoEnabled: v, audioEnabled: a };
+          updatePhase('connecting');
         }}
       />
     );
@@ -661,6 +683,18 @@ export default function VideoMeetComponent() {
     );
   }
 
+  // Connecting to meeting (waiting for camera to start up and join-call to emit)
+  if (phase === 'connecting') {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-white text-lg font-medium">Connecting to meeting...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Main meeting UI
   return (
     <div className="min-h-screen bg-gray-900 relative flex h-screen">
@@ -687,6 +721,10 @@ export default function VideoMeetComponent() {
           showChat={showModal}
           onToggleChat={openChat}
           newMessages={newMessages}
+          isHost={isHost}
+          waitlistCount={waitlist.length}
+          onToggleShareCard={() => setShowShareCard(true)}
+          onToggleAdmitPanel={() => setShowAdmitPanel(p => !p)}
           chatPanel={
             <ChatPanel
               messages={messages}
@@ -817,7 +855,14 @@ export default function VideoMeetComponent() {
 
                 {/* Local Video corner (shown only in grid mode) */}
                 <div className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20">
-                  <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover bg-black" />
+                  <video 
+                    ref={el => {
+                      localVideoRef.current = el;
+                      if (el && localStreamRef.current) el.srcObject = localStreamRef.current;
+                    }} 
+                    autoPlay muted playsInline 
+                    className="w-full h-full object-cover bg-black" 
+                  />
                   <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
                     {screenSharing ? '🖥 Sharing' : 'You'}
                   </div>

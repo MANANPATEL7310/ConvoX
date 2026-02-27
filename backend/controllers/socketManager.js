@@ -69,11 +69,17 @@ export const connectToSocket = (server) => {
             if (username) socketUsernames.set(socket.id, username);
 
             const hostKey    = `host:${path}`;
-            const currentHost = await client.get(hostKey);
+            const hostNameKey = `hostName:${path}`;
+            const currentHostSocket = await client.get(hostKey);
+            const currentHostName = await client.get(hostNameKey);
 
-            if (!currentHost) {
-                // ── No host yet: this user becomes host, skip waiting room ──
-                console.log(`Room ${path}: ${socket.id} is first → HOST, admitted instantly`);
+            if (!currentHostSocket || currentHostName === socket.data.username) {
+                // LOCK THE HOST ROLE IMMEDIATELY TO PREVENT RACE CONDITIONS
+                await client.set(hostKey, socket.id);
+                await client.set(hostNameKey, socket.data.username);
+
+                // ── No host yet, or host reconnected: admitted instantly ──
+                console.log(`Room ${path}: ${socket.id} is HOST, admitted instantly`);
                 socket.data.pendingPath = null;
                 io.to(socket.id).emit("admitted", { asHost: true });
             } else {
@@ -278,14 +284,36 @@ export const connectToSocket = (server) => {
 
             // ── Host promotion: if the leaving user was host, promote next ──
             const hostKey = `host:${roomPath}`;
+            const hostNameKey = `hostName:${roomPath}`;
             const currentHost = await client.get(hostKey);
-            if (currentHost === socket.id && remaining.length > 0) {
-                const newHost = remaining[0];
-                await client.set(hostKey, newHost);
-                io.to(newHost).emit("role-assigned", { role: 'host' });
-                // Send the new host the current waitlist
-                await broadcastWaitlist(io, roomPath);
-                console.log(`Room ${roomPath}: host left → ${newHost} promoted`);
+
+            if (currentHost === socket.id) {
+                if (remaining.length > 0) {
+                    // Give the host a 4 second grace period to reconnect before promoting someone else
+                    setTimeout(async () => {
+                        const hostAfterTimeout = await client.get(hostKey);
+                        if (hostAfterTimeout === socket.id) {
+                            // Host did not reconnect to claim a new socket.id
+                            const newRemaining = await client.sMembers(roomKey);
+                            if (newRemaining.length > 0) {
+                                const newHost = newRemaining[0];
+                                const newHostName = socketUsernames.get(newHost);
+                                await client.set(hostKey, newHost);
+                                if (newHostName) await client.set(hostNameKey, newHostName);
+                                
+                                io.to(newHost).emit("role-assigned", { role: 'host' });
+                                await broadcastWaitlist(io, roomPath);
+                                console.log(`Room ${roomPath}: host left permanently → ${newHost} promoted`);
+                            } else {
+                                await client.del(hostKey);
+                                await client.del(hostNameKey);
+                            }
+                        }
+                    }, 4000);
+                } else {
+                    await client.del(hostKey);
+                    await client.del(hostNameKey);
+                }
             }
 
             if (remaining.length > 0) {
@@ -295,6 +323,7 @@ export const connectToSocket = (server) => {
                 await client.del(roomKey);
                 await client.del(`messages:${roomPath}`);
                 await client.del(hostKey);
+                await client.del(hostNameKey);
                 await client.del(`waitlist:${roomPath}`);
             }
         });

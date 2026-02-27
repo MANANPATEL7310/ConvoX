@@ -110,50 +110,36 @@ export default function HostAdmitPanel({ waitlist = [], onAdmit, onReject, onClo
                       </div>
                     </div>
 
-                    {/* Admit / Reject buttons */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* Admit */}
+                    {/* Admit / Reject buttons — stacked, touch-friendly */}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0">
                       <button
                         onClick={() => onAdmit(socketId)}
-                        title="Admit"
                         style={{
-                          width: 32, height: 32,
-                          borderRadius: 10,
-                          border: 'none',
-                          background: 'rgba(34,197,94,0.15)',
-                          color: '#22c55e',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          padding: '5px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                          background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                          color: '#fff', fontWeight: 700, fontSize: 12,
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          boxShadow: '0 2px 8px rgba(34,197,94,0.3)',
                           transition: 'all 0.15s',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(34,197,94,0.25)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(34,197,94,0.15)'}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'scale(1.04)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }}
                       >
-                        <Check style={{ width: 15, height: 15 }} />
+                        <Check style={{ width: 12, height: 12 }} /> Admit
                       </button>
-
-                      {/* Reject */}
                       <button
                         onClick={() => onReject(socketId)}
-                        title="Remove"
                         style={{
-                          width: 32, height: 32,
-                          borderRadius: 10,
-                          border: 'none',
+                          padding: '5px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
                           background: 'rgba(239,68,68,0.12)',
-                          color: '#ef4444',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          color: '#ef4444', fontWeight: 600, fontSize: 12,
+                          display: 'flex', alignItems: 'center', gap: 4,
                           transition: 'all 0.15s',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239,68,68,0.22)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(239,68,68,0.12)'}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.22)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; }}
                       >
-                        <UserX style={{ width: 15, height: 15 }} />
+                        <UserX style={{ width: 12, height: 12 }} /> Remove
                       </button>
                     </div>
                   </motion.div>
