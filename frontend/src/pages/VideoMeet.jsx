@@ -862,6 +862,7 @@ export default function VideoMeetComponent() {
                     }} 
                     autoPlay muted playsInline 
                     className="w-full h-full object-cover bg-black" 
+                    style={{ transform: 'scaleX(-1)' }}
                   />
                   <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
                     {screenSharing ? '🖥 Sharing' : 'You'}

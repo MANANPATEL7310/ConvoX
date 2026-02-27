@@ -49,20 +49,29 @@ export default function HostAdmitPanel({ waitlist = [], onAdmit, onReject, onClo
           </div>
           <button
             onClick={onClose}
+            title="Cancel"
             style={{
-              width: 28, height: 28,
-              borderRadius: '50%',
-              border: dark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb',
-              background: dark ? '#1f2937' : '#f9fafb',
-              color: dark ? '#9ca3af' : '#6b7280',
-              cursor: 'pointer',
+              height: 32,
+              padding: '0 16px',
+              borderRadius: 16,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'all 0.15s',
+              gap: 6,
+              cursor: 'pointer',
+              border: dark ? '1px solid #4b5563' : '1px solid #e5e7eb',
+              background: dark ? '#1f2937' : '#ffffff',
+              color: dark ? '#f9fafb' : '#111827',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              fontWeight: 600,
+              fontSize: '13px',
+              transition: 'all 0.2s',
             }}
+            onMouseEnter={e => e.currentTarget.style.background = dark ? '#374151' : '#f3f4f6'}
+            onMouseLeave={e => e.currentTarget.style.background = dark ? '#1f2937' : '#ffffff'}
           >
-            <X style={{ width: 14, height: 14 }} />
+            <X style={{ width: 14, height: 14, stroke: dark ? '#f9fafb' : '#111827' }} />
+            Cancel
           </button>
         </div>
 
