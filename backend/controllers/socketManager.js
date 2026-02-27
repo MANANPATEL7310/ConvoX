@@ -68,17 +68,35 @@ export const connectToSocket = (server) => {
 
             if (username) socketUsernames.set(socket.id, username);
 
-            const hostKey    = `host:${path}`;
+            const hostKey     = `host:${path}`;
             const hostNameKey = `hostName:${path}`;
+            const mainHostKey = `mainHost:${path}`;
+            
             const currentHostSocket = await client.get(hostKey);
-            const currentHostName = await client.get(hostNameKey);
+            const currentHostName   = await client.get(hostNameKey);
+            let   mainHostName      = await client.get(mainHostKey);
 
-            if (!currentHostSocket || currentHostName === socket.data.username) {
-                // LOCK THE HOST ROLE IMMEDIATELY TO PREVENT RACE CONDITIONS
+            // If room is completely fresh, set this first user as the Main Forever Host
+            if (!mainHostName && socket.data.username) {
+                await client.set(mainHostKey, socket.data.username);
+                mainHostName = socket.data.username;
+            }
+
+            const isCurrentHost = currentHostName === socket.data.username;
+            const isMainHost    = mainHostName === socket.data.username;
+
+            if (!currentHostSocket || isCurrentHost || isMainHost) {
+                // ── Admitted Instantly ──
+                // IF they are the Main Host returning to steal the role from an interim host
+                if (currentHostSocket && isMainHost && !isCurrentHost) {
+                    io.to(currentHostSocket).emit("role-assigned", { role: 'participant' });
+                    console.log(`Room ${path}: Main Host ${socket.data.username} returned, reclaiming role from ${currentHostName}`);
+                }
+
+                // LOCK THE HOST ROLE
                 await client.set(hostKey, socket.id);
                 await client.set(hostNameKey, socket.data.username);
 
-                // ── No host yet, or host reconnected: admitted instantly ──
                 console.log(`Room ${path}: ${socket.id} is HOST, admitted instantly`);
                 socket.data.pendingPath = null;
                 io.to(socket.id).emit("admitted", { asHost: true });
@@ -324,6 +342,7 @@ export const connectToSocket = (server) => {
                 await client.del(`messages:${roomPath}`);
                 await client.del(hostKey);
                 await client.del(hostNameKey);
+                await client.del(`mainHost:${roomPath}`);
                 await client.del(`waitlist:${roomPath}`);
             }
         });
