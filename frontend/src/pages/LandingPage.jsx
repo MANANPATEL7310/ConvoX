@@ -259,34 +259,70 @@ export default function LandingPage() {
               ConvoX
             </motion.span>
 
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2">
               <ThemeToggle />
 
               {user ? (
-                /* ── Logged-in nav ── */
                 <>
                   <Link to="/home">
-                    <Button variant="ghost" className={`font-medium transition-colors ${t.navText(dark)}`}>
+                    <button style={{
+                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
+                      border: dark ? '1.5px solid rgba(255,255,255,0.14)' : '1.5px solid #ddd6fe',
+                      background: dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)',
+                      color: dark ? '#a5b4fc' : '#4338ca',
+                      cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.22)' : '#e0e7ff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)'; }}
+                    >
                       Dashboard
-                    </Button>
+                    </button>
                   </Link>
-                  <Button
+                  <button
                     onClick={async () => { await logout(); navigate('/'); }}
-                    className="bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-md hover:shadow-lg hover:scale-105 transition-all px-5"
+                    style={{
+                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #f43f5e, #dc2626)',
+                      color: '#fff', cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
+                      boxShadow: '0 2px 10px rgba(220,38,38,0.28)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.opacity = '0.9'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = '1'; }}
                   >
                     Logout
-                  </Button>
+                  </button>
                 </>
               ) : (
-                /* ── Guest nav ── */
                 <>
                   <Link to="/auth">
-                    <Button variant="ghost" className={`font-medium transition-colors ${t.navText(dark)}`}>Sign In</Button>
+                    <button style={{
+                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
+                      border: dark ? '1.5px solid rgba(255,255,255,0.14)' : '1.5px solid #ddd6fe',
+                      background: dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)',
+                      color: dark ? '#a5b4fc' : '#4338ca',
+                      cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.22)' : '#e0e7ff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)'; }}
+                    >
+                      Sign In
+                    </button>
                   </Link>
                   <Link to="/auth">
-                    <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg hover:scale-105 transition-all px-5">
-                      Get Started <ArrowRight className="ml-1.5 w-4 h-4" />
-                    </Button>
+                    <button style={{
+                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #6366f1, #9333ea)',
+                      color: '#fff', cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
+                      boxShadow: '0 2px 10px rgba(99,102,241,0.32)',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.opacity = '0.9'; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = '1'; }}
+                    >
+                      Get Started <ArrowRight style={{ width: 14, height: 14 }} />
+                    </button>
                   </Link>
                 </>
               )}
