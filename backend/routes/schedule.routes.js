@@ -258,6 +258,8 @@ router.put("/:id", verifyToken, async (req, res) => {
 router.delete("/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const reasonRaw = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    const cancelReason = reasonRaw.length > 280 ? reasonRaw.slice(0, 280) : reasonRaw;
     const meeting = await ScheduledMeeting.findOne({ _id: id, hostUserId: req.user._id });
     if (!meeting) {
       return res.status(404).json({ message: "Meeting not found." });
@@ -268,6 +270,8 @@ router.delete("/:id", verifyToken, async (req, res) => {
     }
 
     meeting.status = "cancelled";
+    meeting.cancelReason = cancelReason;
+    meeting.cancelledAt = new Date();
     await meeting.save();
 
     await Notification.create({
@@ -277,13 +281,16 @@ router.delete("/:id", verifyToken, async (req, res) => {
       meetingTitle: meeting.title,
       scheduledFor: meeting.scheduledFor,
       type: "meeting-cancelled",
-      message: `Meeting \"${meeting.title}\" was cancelled.`,
+      message: cancelReason
+        ? `Meeting \"${meeting.title}\" was cancelled. Reason: ${cancelReason}`
+        : `Meeting \"${meeting.title}\" was cancelled.`,
     });
 
     const hostCancelHtml = renderScheduleCancelledHost({
       hostName: meeting.hostName,
       meetingTitle: meeting.title,
       scheduledFor: meeting.scheduledFor,
+      reason: cancelReason,
     });
 
     await sendEmail({
@@ -297,6 +304,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
         hostName: meeting.hostName,
         meetingTitle: meeting.title,
         scheduledFor: meeting.scheduledFor,
+        reason: cancelReason,
       });
 
       for (const attendeeEmail of meeting.attendees) {

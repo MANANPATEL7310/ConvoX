@@ -19,6 +19,8 @@ const scheduledMeetingSchema = new Schema(
       enum: ["scheduled", "started", "completed", "cancelled"],
       default: "scheduled",
     },
+    cancelledAt: { type: Date, default: null },
+    cancelReason: { type: String, default: "" },
   },
   { timestamps: true }
 );

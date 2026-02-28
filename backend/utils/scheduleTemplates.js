@@ -150,14 +150,19 @@ export const renderScheduleCancelledHost = ({
   hostName,
   meetingTitle,
   scheduledFor,
+  reason,
 }) => {
   const timeLabel = formatMeetingTime(scheduledFor);
+  const reasonBlock = reason
+    ? `<p style="color: #475569; font-size: 14px; margin: 0 0 14px 0;"><strong>Reason:</strong> ${reason}</p>`
+    : "";
   const body = `
     <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
       Hi ${hostName || "there"}, your meeting has been cancelled.
     </p>
     <p style="color: #1e293b; font-size: 14px; margin: 0 0 6px 0;"><strong>Title:</strong> ${meetingTitle}</p>
     <p style="color: #1e293b; font-size: 14px; margin: 0 0 14px 0;"><strong>Was scheduled for:</strong> ${timeLabel} (IST)</p>
+    ${reasonBlock}
   `;
 
   return renderFrame({
@@ -171,14 +176,19 @@ export const renderScheduleCancelledInvite = ({
   hostName,
   meetingTitle,
   scheduledFor,
+  reason,
 }) => {
   const timeLabel = formatMeetingTime(scheduledFor);
+  const reasonBlock = reason
+    ? `<p style="color: #475569; font-size: 14px; margin: 0 0 14px 0;"><strong>Reason:</strong> ${reason}</p>`
+    : "";
   const body = `
     <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
       ${hostName || "Someone"} cancelled a scheduled ConvoX meeting.
     </p>
     <p style="color: #1e293b; font-size: 14px; margin: 0 0 6px 0;"><strong>Title:</strong> ${meetingTitle}</p>
     <p style="color: #1e293b; font-size: 14px; margin: 0 0 14px 0;"><strong>Was scheduled for:</strong> ${timeLabel} (IST)</p>
+    ${reasonBlock}
   `;
 
   return renderFrame({

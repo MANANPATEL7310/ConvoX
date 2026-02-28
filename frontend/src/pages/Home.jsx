@@ -233,11 +233,14 @@ export default function HomeComponent() {
     }
   }, []);
 
-  const handleCancelMeeting = useCallback(async () => {
+  const handleCancelMeeting = useCallback(async (reason = '') => {
     if (!cancelState?.meeting) return;
     setCancelLoading(true);
     try {
-      await axios.delete(`${server_url}/api/v1/schedule/${cancelState.meeting._id}`, { withCredentials: true });
+      await axios.delete(`${server_url}/api/v1/schedule/${cancelState.meeting._id}`, {
+        withCredentials: true,
+        data: { reason },
+      });
       setScheduledMeetings(prev => prev.map(m => (
         m._id === cancelState.meeting._id ? { ...m, status: 'cancelled' } : m
       )));
@@ -308,7 +311,8 @@ export default function HomeComponent() {
               <ThemeToggle />
               {user && (
                 <div className="relative">
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={async () => {
                       const next = !notifOpen;
                       setNotifOpen(next);
@@ -316,20 +320,18 @@ export default function HomeComponent() {
                         await markAllRead();
                       }
                     }}
-                    className={`relative h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
-                      dark
-                        ? 'text-gray-400 hover:text-white hover:bg-white/[0.06]'
-                        : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80'
+                    className={`relative flex items-center justify-center p-0 h-9 w-9 rounded-lg ${
+                      dark ? 'text-gray-400 hover:text-white hover:bg-white/[0.06]' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80'
                     }`}
                     title="Notifications"
                   >
                     <Bell className="w-4 h-4" />
                     {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center justify-center shadow-sm">
                         {unreadCount > 99 ? '99+' : unreadCount}
                       </span>
                     )}
-                  </button>
+                  </Button>
 
                   {notifOpen && (
                     <div className={`absolute right-0 mt-2 w-80 rounded-2xl border shadow-2xl z-50 ${

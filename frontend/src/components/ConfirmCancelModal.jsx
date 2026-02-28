@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,11 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export default function ConfirmCancelModal({ open, meetingTitle, onConfirm, onClose, loading }) {
   const { dark } = useTheme();
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    if (open) setReason('');
+  }, [open]);
 
   if (!open) return null;
 
@@ -54,10 +59,30 @@ export default function ConfirmCancelModal({ open, meetingTitle, onConfirm, onCl
             </div>
           </div>
 
-          <p className={`text-sm mb-6 ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
+          <p className={`text-sm mb-4 ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
             Are you sure you want to cancel
             <span className={`font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}> {meetingTitle || 'this meeting'} </span>?
           </p>
+
+          <div className="mb-5">
+            <label className={`text-xs font-semibold ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+              Reason for cancellation (optional)
+            </label>
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              maxLength={280}
+              placeholder="Add a short reason to include in the email..."
+              className={`mt-2 w-full min-h-[90px] rounded-xl border px-3 py-2 text-sm outline-none transition-all ${
+                dark
+                  ? 'bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 focus:border-rose-400'
+                  : 'bg-white border-gray-200 text-gray-700 placeholder:text-gray-400 focus:border-rose-300'
+              }`}
+            />
+            <p className={`text-[11px] mt-1 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+              {reason.trim().length}/280 characters
+            </p>
+          </div>
 
           <div className="flex gap-2">
             <Button
@@ -70,7 +95,7 @@ export default function ConfirmCancelModal({ open, meetingTitle, onConfirm, onCl
               Keep Meeting
             </Button>
             <Button
-              onClick={onConfirm}
+              onClick={() => onConfirm(reason.trim())}
               disabled={loading}
               className="flex-1 h-10 rounded-xl text-sm font-semibold bg-rose-600 hover:bg-rose-700 text-white"
             >
