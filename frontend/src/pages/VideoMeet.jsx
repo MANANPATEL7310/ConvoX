@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import io from "socket.io-client";
-import { Badge, IconButton, TextField, Button } from '@mui/material';
+import { Badge, IconButton, TextField, Button, Tooltip } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
 import CallEndIcon from '@mui/icons-material/CallEnd';
@@ -1667,118 +1667,52 @@ export default function VideoMeetComponent() {
               className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4"
               style={{ position: 'absolute' }}
             >
-              <IconButton onClick={toggleVideo} style={{ color: "white" }}>
-                {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
-              </IconButton>
-              <IconButton onClick={toggleAudio} style={{ color: "white" }}>
-                {audioEnabled ? <MicIcon /> : <MicOffIcon />}
-              </IconButton>
-              <IconButton
-                onClick={toggleScreenShare}
-                title={screenSharing ? 'Stop sharing' : 'Share screen'}
-                style={{ color: screenSharing ? '#f97316' : 'white', position: 'relative' }}
-              >
-                {screenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
-                {/* Orange dot indicator when sharing */}
-                {screenSharing && (
-                  <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: '50%', background: '#f97316', animation: 'sfuSpeakPulse 1s ease-in-out infinite alternate' }} />
-                )}
-              </IconButton>
-              <IconButton onClick={endCall} style={{ color: "#ef4444" }}>
-                <CallEndIcon />
-              </IconButton>
-              <Badge badgeContent={newMessages} max={99} color="warning">
-                <IconButton onClick={openChat} style={{ color: "white" }}>
-                  <ChatIcon />
+              <Tooltip title={videoEnabled ? 'Turn off camera' : 'Turn on camera'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                <IconButton onClick={toggleVideo} style={{ color: "white" }}>
+                  {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
                 </IconButton>
-              </Badge>
-              {isHost && (
+              </Tooltip>
+              <Tooltip title={audioEnabled ? 'Mute microphone' : 'Unmute microphone'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                <IconButton onClick={toggleAudio} style={{ color: "white" }}>
+                  {audioEnabled ? <MicIcon /> : <MicOffIcon />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={screenSharing ? 'Stop sharing' : 'Share screen'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
                 <IconButton
-                  onClick={toggleRecording}
-                  title={isRecording ? 'Stop recording' : 'Start recording'}
-                  style={{ color: isRecording ? '#ef4444' : 'white' }}
+                  onClick={toggleScreenShare}
+                  style={{ color: screenSharing ? '#f97316' : 'white', position: 'relative' }}
                 >
-                  <FiberManualRecordIcon />
+                  {screenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
+                  {/* Orange dot indicator when sharing */}
+                  {screenSharing && (
+                    <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: '50%', background: '#f97316', animation: 'sfuSpeakPulse 1s ease-in-out infinite alternate' }} />
+                  )}
                 </IconButton>
-              )}
-              {isHost && (
-                <IconButton
-                  onClick={toggleWhiteboard}
-                  title={whiteboardVisible ? 'Close whiteboard' : 'Open whiteboard'}
-                  style={{ color: whiteboardVisible ? '#22c55e' : 'white' }}
-                >
-                  <BrushIcon />
+              </Tooltip>
+              <Tooltip title="End call" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                <IconButton onClick={endCall} style={{ color: "#ef4444" }}>
+                  <CallEndIcon />
                 </IconButton>
-              )}
-              <IconButton
-                onClick={() => setCaptionsEnabled(p => !p)}
-                title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'}
-                style={{ color: captionsEnabled ? '#a5b4fc' : 'white' }}
-              >
-                {captionsEnabled ? <SubtitlesIcon /> : <SubtitlesOffIcon />}
-              </IconButton>
-              <div style={{ position: 'relative' }}>
-                <IconButton
-                  onClick={() => setShowReactionPicker(p => !p)}
-                  title="Send reaction"
-                  style={{ color: "white" }}
-                >
-                  <EmojiEmotionsIcon />
-                </IconButton>
-                {showReactionPicker && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      bottom: 46,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      background: 'rgba(15,23,42,0.95)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                      borderRadius: 999,
-                      padding: '6px 10px',
-                      display: 'flex',
-                      gap: 8,
-                      boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
-                      zIndex: 30,
-                    }}
-                  >
-                    {REACTION_OPTIONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => sendReaction(emoji)}
-                        style={{
-                          fontSize: 20,
-                          lineHeight: '20px',
-                          padding: '2px 4px',
-                          borderRadius: 8,
-                          background: 'transparent',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <IconButton
-                onClick={toggleRaiseHand}
-                title={isHandRaised ? 'Lower hand' : 'Raise hand'}
-                style={{ color: isHandRaised ? '#f59e0b' : 'white' }}
-              >
-                {isHandRaised ? <PanToolIcon /> : <PanToolOutlinedIcon />}
-              </IconButton>
-              {/* Host controls panel toggle */}
-              {isHost && (
-                <Badge badgeContent={waitlist.length} max={99} color="error">
-                  <IconButton
-                    onClick={() => setShowHostPanel(p => !p)}
-                    title="Host Controls"
-                    style={{ color: waitlist.length > 0 ? '#fbbf24' : 'white' }}
-                  >
-                    <AdminPanelSettingsIcon />
+              </Tooltip>
+              <Tooltip title="Open chat" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                <Badge badgeContent={newMessages} max={99} color="warning">
+                  <IconButton onClick={openChat} style={{ color: "white" }}>
+                    <ChatIcon />
                   </IconButton>
                 </Badge>
+              </Tooltip>
+              {/* Host controls panel toggle */}
+              {isHost && (
+                <Tooltip title="Host controls" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                  <Badge badgeContent={waitlist.length} max={99} color="error">
+                    <IconButton
+                      onClick={() => setShowHostPanel(p => !p)}
+                      style={{ color: waitlist.length > 0 ? '#fbbf24' : 'white' }}
+                    >
+                      <AdminPanelSettingsIcon />
+                    </IconButton>
+                  </Badge>
+                </Tooltip>
               )}
               <div
                 style={{
@@ -1812,7 +1746,119 @@ export default function VideoMeetComponent() {
                   <option value="hd">HD</option>
                 </select>
               </div>
-              <ModeIndicator mode={mode} participantCount={participantCount} />
+              <Tooltip
+                title={mode === 'sfu' ? 'Meeting mode: SFU (3+ participants)' : 'Meeting mode: P2P (1–2 participants)'}
+                enterDelay={100}
+                enterNextDelay={50}
+                leaveDelay={0}
+                arrow
+              >
+                <span style={{ display: 'inline-flex' }}>
+                  <ModeIndicator mode={mode} participantCount={participantCount} />
+                </span>
+              </Tooltip>
+            </div>
+
+            {/* ── Side Controls (secondary actions) ── */}
+            <div
+              style={{
+                position: 'absolute',
+                right: 18,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                alignItems: 'center',
+                zIndex: 20,
+                background: 'rgba(17,24,39,0.9)',
+                backdropFilter: 'blur(12px)',
+                borderRadius: 16,
+                padding: '10px 8px',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              {isHost && (
+                <Tooltip title={isRecording ? 'Stop recording' : 'Start recording'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                  <IconButton
+                    onClick={toggleRecording}
+                    style={{ color: isRecording ? '#ef4444' : 'white' }}
+                  >
+                    <FiberManualRecordIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {isHost && (
+                <Tooltip title={whiteboardVisible ? 'Close whiteboard' : 'Open whiteboard'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                  <IconButton
+                    onClick={toggleWhiteboard}
+                    style={{ color: whiteboardVisible ? '#22c55e' : 'white' }}
+                  >
+                    <BrushIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Tooltip title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                <IconButton
+                  onClick={() => setCaptionsEnabled(p => !p)}
+                  style={{ color: captionsEnabled ? '#a5b4fc' : 'white' }}
+                >
+                  {captionsEnabled ? <SubtitlesIcon /> : <SubtitlesOffIcon />}
+                </IconButton>
+              </Tooltip>
+              <div style={{ position: 'relative' }}>
+                <Tooltip title="Send reaction" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                  <IconButton
+                    onClick={() => setShowReactionPicker(p => !p)}
+                    style={{ color: "white" }}
+                  >
+                    <EmojiEmotionsIcon />
+                  </IconButton>
+                </Tooltip>
+                {showReactionPicker && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 46,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'rgba(15,23,42,0.95)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 999,
+                      padding: '6px 10px',
+                      display: 'flex',
+                      gap: 8,
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+                      zIndex: 30,
+                    }}
+                  >
+                    {REACTION_OPTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => sendReaction(emoji)}
+                        style={{
+                          fontSize: 20,
+                          lineHeight: '20px',
+                          padding: '2px 4px',
+                          borderRadius: 8,
+                          background: 'transparent',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Tooltip title={isHandRaised ? 'Lower hand' : 'Raise hand'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+                <IconButton
+                  onClick={toggleRaiseHand}
+                  style={{ color: isHandRaised ? '#f59e0b' : 'white' }}
+                >
+                  {isHandRaised ? <PanToolIcon /> : <PanToolOutlinedIcon />}
+                </IconButton>
+              </Tooltip>
             </div>
           </div>
 

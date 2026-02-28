@@ -12,7 +12,7 @@ import {
 import { Track } from 'livekit-client';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Badge, IconButton } from '@mui/material';
+import { Badge, IconButton, Tooltip } from '@mui/material';
 import ChatIcon from '@mui/icons-material/Chat';
 import CallEndIcon from '@mui/icons-material/CallEnd';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
@@ -244,7 +244,7 @@ export default function SFURoom({
           <VideoGrid pinnedSid={pinnedSid} onTogglePin={setPinnedSid} />
         </div>
 
-        {/* Bottom control bar — LiveKit built-in + custom End/Chat/Host settings */}
+        {/* Bottom control bar — primary actions only */}
         <div style={{
           position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
           display: 'flex', alignItems: 'center', gap: 8, zIndex: 20,
@@ -258,52 +258,95 @@ export default function SFURoom({
           />
 
           {/* End Call */}
-          <IconButton onClick={onEndCall} style={{ color: '#ef4444' }}>
-            <CallEndIcon />
-          </IconButton>
+          <Tooltip title="End call" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+            <IconButton onClick={onEndCall} style={{ color: '#ef4444' }}>
+              <CallEndIcon />
+            </IconButton>
+          </Tooltip>
 
           {/* Chat toggle */}
-          <Badge badgeContent={newMessages} max={99} color="warning">
-            <IconButton onClick={onToggleChat} style={{ color: 'white' }}>
-              <ChatIcon />
-            </IconButton>
-          </Badge>
+          <Tooltip title="Open chat" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+            <Badge badgeContent={newMessages} max={99} color="warning">
+              <IconButton onClick={onToggleChat} style={{ color: 'white' }}>
+                <ChatIcon />
+              </IconButton>
+            </Badge>
+          </Tooltip>
 
+          {/* Waiting room badge — host only */}
           {isHost && (
-            <IconButton
-              onClick={onToggleRecording}
-              title={isRecording ? 'Stop recording' : 'Start recording'}
-              style={{ color: isRecording ? '#ef4444' : 'white' }}
-            >
-              <FiberManualRecordIcon />
-            </IconButton>
+            <Tooltip title="Waiting room" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+              <Badge badgeContent={waitlistCount} max={99} color="error">
+                <IconButton
+                  onClick={onToggleAdmitPanel}
+                  style={{ color: waitlistCount > 0 ? '#fbbf24' : 'white' }}
+                >
+                  {/* Person queue icon */}
+                  <svg viewBox="0 0 24 24" style={{ width: 22, height: 22 }} fill="currentColor">
+                    <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                  </svg>
+                </IconButton>
+              </Badge>
+            </Tooltip>
+          )}
+
+        </div>
+
+        {/* Side control bar — secondary actions */}
+        <div style={{
+          position: 'absolute',
+          right: 18,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          alignItems: 'center',
+          zIndex: 20,
+          background: 'rgba(17,24,39,0.9)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: 16,
+          padding: '10px 8px',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          {isHost && (
+            <Tooltip title={isRecording ? 'Stop recording' : 'Start recording'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+              <IconButton
+                onClick={onToggleRecording}
+                style={{ color: isRecording ? '#ef4444' : 'white' }}
+              >
+                <FiberManualRecordIcon />
+              </IconButton>
+            </Tooltip>
           )}
 
           {/* Captions */}
-          <IconButton
-            onClick={onToggleCaptions}
-            title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'}
-            style={{ color: captionsEnabled ? '#a5b4fc' : 'white' }}
-          >
-            {captionsEnabled ? <SubtitlesIcon /> : <SubtitlesOffIcon />}
-          </IconButton>
+          <Tooltip title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+            <IconButton
+              onClick={onToggleCaptions}
+              style={{ color: captionsEnabled ? '#a5b4fc' : 'white' }}
+            >
+              {captionsEnabled ? <SubtitlesIcon /> : <SubtitlesOffIcon />}
+            </IconButton>
+          </Tooltip>
 
           {/* Reactions */}
           <div style={{ position: 'relative' }}>
-            <IconButton
-              onClick={() => setShowReactionPicker((p) => !p)}
-              title="Send reaction"
-              style={{ color: 'white' }}
-            >
-              <EmojiEmotionsIcon />
-            </IconButton>
+            <Tooltip title="Send reaction" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+              <IconButton
+                onClick={() => setShowReactionPicker((p) => !p)}
+                style={{ color: 'white' }}
+              >
+                <EmojiEmotionsIcon />
+              </IconButton>
+            </Tooltip>
             {showReactionPicker && (
               <div
                 style={{
                   position: 'absolute',
-                  bottom: 46,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
+                  right: 46,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
                   background: 'rgba(15,23,42,0.95)',
                   border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: 999,
@@ -335,41 +378,26 @@ export default function SFURoom({
           </div>
 
           {/* Raise hand */}
-          <IconButton
-            onClick={onToggleRaiseHand}
-            title={isHandRaised ? 'Lower hand' : 'Raise hand'}
-            style={{ color: isHandRaised ? '#f59e0b' : 'white' }}
-          >
-            {isHandRaised ? <PanToolIcon /> : <PanToolOutlinedIcon />}
-          </IconButton>
+          <Tooltip title={isHandRaised ? 'Lower hand' : 'Raise hand'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
+            <IconButton
+              onClick={onToggleRaiseHand}
+              style={{ color: isHandRaised ? '#f59e0b' : 'white' }}
+            >
+              {isHandRaised ? <PanToolIcon /> : <PanToolOutlinedIcon />}
+            </IconButton>
+          </Tooltip>
 
           {/* Share button — host only */}
           {isHost && (
-            <IconButton
-              onClick={onToggleShareCard}
-              title="Invite participants"
-              style={{ color: '#a78bfa' }}
-            >
-              <PersonAddIcon />
-            </IconButton>
-          )}
-
-          {/* Waiting room badge — host only */}
-          {isHost && (
-            <Badge badgeContent={waitlistCount} max={99} color="error">
+            <Tooltip title="Invite participants" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
               <IconButton
-                onClick={onToggleAdmitPanel}
-                title="Waiting Room"
-                style={{ color: waitlistCount > 0 ? '#fbbf24' : 'white' }}
+                onClick={onToggleShareCard}
+                style={{ color: '#a78bfa' }}
               >
-                {/* Person queue icon */}
-                <svg viewBox="0 0 24 24" style={{ width: 22, height: 22 }} fill="currentColor">
-                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-                </svg>
+                <PersonAddIcon />
               </IconButton>
-            </Badge>
+            </Tooltip>
           )}
-
         </div>
       </LiveKitRoom>
 
