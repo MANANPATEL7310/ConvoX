@@ -11,6 +11,8 @@ import authRoutes from "./routes/auth.routes.js";
 import livekitRoutes from "./routes/livekit.routes.js";
 import inviteRoutes from "./routes/invite.routes.js";
 import googleAuthRoutes from "./routes/google.auth.routes.js";
+import scheduleRoutes from "./routes/schedule.routes.js";
+import { startScheduleWorker } from "./utils/scheduleWorker.js";
 
 
 const app = express();
@@ -33,6 +35,7 @@ app.use("/api/v1/users", authRoutes);
 app.use("/api/v1/livekit", livekitRoutes);
 app.use("/api/v1/invite", inviteRoutes);
 app.use("/api/v1/auth", googleAuthRoutes);
+app.use("/api/v1/schedule", scheduleRoutes);
 
 const start = async () => {
     try {
@@ -40,6 +43,7 @@ const start = async () => {
         console.log("database connected successfully.");
         
         await startRedis();
+        startScheduleWorker();
         server.listen(app.get("port"), () => {
             console.log(`LISTENIN ON PORT ${app.get("port")}`)
         });

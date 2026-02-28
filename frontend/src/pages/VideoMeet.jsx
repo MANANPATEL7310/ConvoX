@@ -454,6 +454,10 @@ export default function VideoMeetComponent() {
         });
       });
 
+      socket.on('error-event', ({ message }) => {
+        if (message) toast.error(message);
+      });
+
       socket.on('role-assigned', ({ role }) => {
         setIsHost(role === 'host');
         if (role === 'host') toast.success('You are now the host');

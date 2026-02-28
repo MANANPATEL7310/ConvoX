@@ -13,6 +13,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import PageWrapper from '../components/PageWrapper';
 import ShareMeetingCard from '../components/ShareMeetingCard';
+import ScheduleMeetingCard from '../components/ScheduleMeetingCard';
 import { toast } from 'sonner';
 
 /* ═══════════════════════════════════════════════════════════
@@ -106,6 +107,7 @@ export default function HomeComponent() {
   const [linkCopied, setLinkCopied] = useState(false);
   // Share card state: { code, url } when a meeting is generated
   const [shareState, setShareState] = useState(null);
+  const [scheduleState, setScheduleState] = useState(null);
   const { user, logout, addToUserHistory } = useAuth();
   const { dark } = useTheme();
 
@@ -143,7 +145,8 @@ export default function HomeComponent() {
         break;
       }
       case 'schedule': {
-        toast.info('Schedule feature coming soon!');
+        const code = generateRoomCode();
+        setScheduleState({ code, url: `${APP_URL}/${code}` });
         break;
       }
       case 'share-link': {
@@ -485,6 +488,17 @@ export default function HomeComponent() {
             await addToUserHistory(shareState.code);
             navigate(`/${shareState.code}`);
           }}
+        />
+      )}
+
+      {/* ── Schedule Meeting Card overlay ── */}
+      {scheduleState && (
+        <ScheduleMeetingCard
+          meetingUrl={scheduleState.url}
+          meetingCode={scheduleState.code}
+          senderName={user?.username || 'Someone'}
+          onClose={() => setScheduleState(null)}
+          onScheduled={() => setScheduleState(null)}
         />
       )}
     </PageWrapper>
