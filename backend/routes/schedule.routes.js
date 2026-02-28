@@ -8,6 +8,8 @@ import {
   renderScheduleInvite,
   renderScheduleUpdatedHost,
   renderScheduleUpdatedInvite,
+  renderScheduleCancelledHost,
+  renderScheduleCancelledInvite,
 } from "../utils/scheduleTemplates.js";
 
 const router = express.Router();
@@ -250,6 +252,66 @@ router.put("/:id", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Schedule update error:", error);
     return res.status(500).json({ message: "Failed to update meeting." });
+  }
+});
+
+router.delete("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const meeting = await ScheduledMeeting.findOne({ _id: id, hostUserId: req.user._id });
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found." });
+    }
+
+    if (meeting.status === "cancelled") {
+      return res.json({ meeting });
+    }
+
+    meeting.status = "cancelled";
+    await meeting.save();
+
+    await Notification.create({
+      userId: req.user._id,
+      meetingId: meeting._id,
+      meetingCode: meeting.meetingCode,
+      meetingTitle: meeting.title,
+      scheduledFor: meeting.scheduledFor,
+      type: "meeting-cancelled",
+      message: `Meeting \"${meeting.title}\" was cancelled.`,
+    });
+
+    const hostCancelHtml = renderScheduleCancelledHost({
+      hostName: meeting.hostName,
+      meetingTitle: meeting.title,
+      scheduledFor: meeting.scheduledFor,
+    });
+
+    await sendEmail({
+      to: meeting.hostEmail,
+      subject: `Cancelled: ${meeting.title}`,
+      html: hostCancelHtml,
+    });
+
+    if (meeting.attendees?.length > 0) {
+      const attendeeCancelHtml = renderScheduleCancelledInvite({
+        hostName: meeting.hostName,
+        meetingTitle: meeting.title,
+        scheduledFor: meeting.scheduledFor,
+      });
+
+      for (const attendeeEmail of meeting.attendees) {
+        await sendEmail({
+          to: attendeeEmail,
+          subject: `Cancelled: ${meeting.title}`,
+          html: attendeeCancelHtml,
+        });
+      }
+    }
+
+    return res.json({ meeting });
+  } catch (error) {
+    console.error("Schedule cancel error:", error);
+    return res.status(500).json({ message: "Failed to cancel meeting." });
   }
 });
 

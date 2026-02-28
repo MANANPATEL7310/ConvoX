@@ -14,6 +14,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import PageWrapper from '../components/PageWrapper';
 import ShareMeetingCard from '../components/ShareMeetingCard';
 import ScheduleMeetingCard from '../components/ScheduleMeetingCard';
+import ConfirmCancelModal from '../components/ConfirmCancelModal';
 import { toast } from 'sonner';
 import axios from 'axios';
 
@@ -116,6 +117,8 @@ export default function HomeComponent() {
   const [copiedScheduleId, setCopiedScheduleId] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [cancelState, setCancelState] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const { user, logout, addToUserHistory } = useAuth();
   const { dark } = useTheme();
 
@@ -229,6 +232,24 @@ export default function HomeComponent() {
       toast.error('Failed to copy link');
     }
   }, []);
+
+  const handleCancelMeeting = useCallback(async () => {
+    if (!cancelState?.meeting) return;
+    setCancelLoading(true);
+    try {
+      await axios.delete(`${server_url}/api/v1/schedule/${cancelState.meeting._id}`, { withCredentials: true });
+      setScheduledMeetings(prev => prev.map(m => (
+        m._id === cancelState.meeting._id ? { ...m, status: 'cancelled' } : m
+      )));
+      toast.success('Meeting cancelled');
+      setCancelState(null);
+    } catch (err) {
+      console.error('Cancel meeting failed:', err);
+      toast.error('Failed to cancel meeting');
+    } finally {
+      setCancelLoading(false);
+    }
+  }, [cancelState]);
 
   const handleQuickAction = useCallback(async (id) => {
     switch (id) {
@@ -572,6 +593,16 @@ export default function HomeComponent() {
                               Edit
                             </Button>
                             <Button
+                              onClick={() => setCancelState({ meeting })}
+                              className={`h-9 px-3 rounded-lg text-xs font-semibold ${
+                                dark
+                                  ? 'bg-rose-500/20 text-rose-200 hover:bg-rose-500/30'
+                                  : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                              }`}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
                               onClick={async () => {
                                 await addToUserHistory(meeting.meetingCode);
                                 navigate(`/${meeting.meetingCode}`);
@@ -769,6 +800,14 @@ export default function HomeComponent() {
           onScheduled={handleScheduled}
         />
       )}
+
+      <ConfirmCancelModal
+        open={!!cancelState}
+        meetingTitle={cancelState?.meeting?.title}
+        onConfirm={handleCancelMeeting}
+        onClose={() => setCancelState(null)}
+        loading={cancelLoading}
+      />
     </PageWrapper>
   );
 }
