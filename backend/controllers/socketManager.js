@@ -54,7 +54,7 @@ const getMeetingCodeFromPath = (path) => {
 /* ─── Hybrid architecture threshold ──────────────────────────────────────
  * ≤ P2P_THRESHOLD → P2P mesh  |  > P2P_THRESHOLD → LiveKit SFU
  * ────────────────────────────────────────────────────────────────────── */
-const P2P_THRESHOLD = 4;
+const P2P_THRESHOLD = 3;
 
 /** Helper: compute + broadcast mode to all users in a room set */
 async function broadcastMode(io, roomKey, roomPath) {
@@ -360,6 +360,57 @@ export const connectToSocket = (server) => {
 
             const users = await client.sMembers(roomKey);
             users.forEach(uid => io.to(uid).emit("chat-message", data, sender, socket.id));
+        });
+
+        /* ── Media state updates (for host UI) ── */
+        socket.on("media-state", async ({ audioEnabled, videoEnabled }) => {
+            const roomKey = socket.data.roomKey;
+            if (!roomKey) return;
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("media-state", {
+                socketId: socket.id,
+                audioEnabled,
+                videoEnabled,
+            }));
+        });
+
+        /* ── Host controls: mute/video off ── */
+        const ensureHost = async () => {
+            const path = socket.data.roomPath;
+            if (!path) return false;
+            const hostKey = `host:${path}`;
+            const hostId = await client.get(hostKey);
+            return hostId === socket.id;
+        };
+
+        socket.on("host-mute-user", async ({ socketId }) => {
+            if (!await ensureHost()) return;
+            if (socketId) io.to(socketId).emit("host-force-mute");
+        });
+
+        socket.on("host-video-off-user", async ({ socketId }) => {
+            if (!await ensureHost()) return;
+            if (socketId) io.to(socketId).emit("host-force-video-off");
+        });
+
+        socket.on("host-mute-all", async () => {
+            if (!await ensureHost()) return;
+            const roomKey = socket.data.roomKey;
+            if (!roomKey) return;
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => {
+                if (uid !== socket.id) io.to(uid).emit("host-force-mute");
+            });
+        });
+
+        socket.on("host-video-off-all", async () => {
+            if (!await ensureHost()) return;
+            const roomKey = socket.data.roomKey;
+            if (!roomKey) return;
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => {
+                if (uid !== socket.id) io.to(uid).emit("host-force-video-off");
+            });
         });
 
         /* ── Typing indicators ── */

@@ -9,7 +9,7 @@ import MicOffIcon from '@mui/icons-material/MicOff';
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
 import ChatIcon from '@mui/icons-material/Chat';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
 import { toast } from "sonner";
@@ -21,11 +21,35 @@ import { useActiveSpeaker } from '../hooks/useActiveSpeaker';
 import ShareMeetingCard from '../components/ShareMeetingCard';
 import PreJoinCard from '../components/PreJoinCard';
 import WaitingRoomScreen from '../components/WaitingRoomScreen';
-import HostAdmitPanel from '../components/HostAdmitPanel';
+import HostControlPanel from '../components/HostControlPanel';
 
 const SERVER_URL = "http://localhost:8000";
+
+const STUN_URLS = [
+  "stun:stun.l.google.com:19302",
+  "stun:stun1.l.google.com:19302",
+];
+
+const TURN_URLS = (import.meta.env.VITE_TURN_URLS || "")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
+const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME || "";
+const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL || "";
+
 const ICE_SERVERS = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  iceServers: [
+    ...STUN_URLS.map((url) => ({ urls: url })),
+    ...(TURN_URLS.length && TURN_USERNAME && TURN_CREDENTIAL
+      ? [{ urls: TURN_URLS, username: TURN_USERNAME, credential: TURN_CREDENTIAL }]
+      : []),
+  ],
+};
+
+const QUALITY_PRESETS = {
+  low: { width: 640, height: 360, frameRate: 15, maxBitrate: 350_000 },
+  standard: { width: 1280, height: 720, frameRate: 30, maxBitrate: 1_200_000 },
+  hd: { width: 1920, height: 1080, frameRate: 30, maxBitrate: 2_500_000 },
 };
 
 export default function VideoMeetComponent() {
@@ -54,6 +78,11 @@ export default function VideoMeetComponent() {
   // Host role — only the host sees the "Share" button
   const [isHost, setIsHost] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [videoQuality, setVideoQuality] = useState('standard');
+  const videoQualityRef = useRef('standard');
+  const [mediaStates, setMediaStates] = useState({});
+  const videoEnabledRef = useRef(true);
+  const audioEnabledRef = useRef(true);
 
   // ── Waiting room state ──
   // phase: 'prejoin' | 'connecting' | 'waiting' | 'rejected' | 'in-meeting'
@@ -64,8 +93,8 @@ export default function VideoMeetComponent() {
     return (stored === 'connecting' || stored === 'in-meeting') ? 'connecting' : 'prejoin';
   });
   const [waitlist, setWaitlist] = useState([]);     // host only
-  const [showAdmitPanel, setShowAdmitPanel] = useState(false);
-  const prejoinMediaRef = useRef({ videoEnabled: true, audioEnabled: true, stream: null });
+  const [showHostPanel, setShowHostPanel] = useState(false);
+  const prejoinMediaRef = useRef({ videoEnabled: true, audioEnabled: true, quality: 'standard', stream: null });
   // Always-current username ref (avoids stale closures in socket callbacks)
   const usernameRef = useRef('');
   // Guards so the socket is created exactly once
@@ -73,6 +102,18 @@ export default function VideoMeetComponent() {
   const intentionalDisconnectRef = useRef(false);
 
   const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    videoQualityRef.current = videoQuality;
+  }, [videoQuality]);
+
+  useEffect(() => {
+    videoEnabledRef.current = videoEnabled;
+  }, [videoEnabled]);
+
+  useEffect(() => {
+    audioEnabledRef.current = audioEnabled;
+  }, [audioEnabled]);
 
   // Use derived state for display username
   const username = user?.username || lobbyUsername;
@@ -89,6 +130,64 @@ export default function VideoMeetComponent() {
 
   // ── Hybrid architecture mode (P2P | SFU) ──
   const { mode, participantCount, upgrading } = useMeetingMode(socketRef);
+
+  const buildAudioConstraints = useCallback(() => ({
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  }), []);
+
+  const buildVideoConstraints = useCallback((qualityKey = 'standard') => {
+    const preset = QUALITY_PRESETS[qualityKey] || QUALITY_PRESETS.standard;
+    return {
+      width: { ideal: preset.width },
+      height: { ideal: preset.height },
+      frameRate: { ideal: preset.frameRate, max: preset.frameRate },
+    };
+  }, []);
+
+  const resolveMediaConstraints = useCallback((constraints, qualityKey = 'standard') => {
+    return {
+      video: constraints.video === true ? buildVideoConstraints(qualityKey) : constraints.video,
+      audio: constraints.audio === true ? buildAudioConstraints() : constraints.audio,
+    };
+  }, [buildAudioConstraints, buildVideoConstraints]);
+
+  const computeAdaptiveScale = useCallback(() => {
+    let scale = 1;
+    const connection = navigator.connection;
+    if (connection) {
+      const downlink = Number(connection.downlink || 0);
+      if (connection.effectiveType === '2g' || downlink > 0 && downlink < 1) scale = 3;
+      else if (connection.effectiveType === '3g' || downlink > 0 && downlink < 2) scale = 2;
+    }
+    if (participantCount >= 4) scale = Math.max(scale, 2);
+    return scale;
+  }, [participantCount]);
+
+  const applyEncodingToPeer = useCallback((pc, qualityKey = 'standard') => {
+    const preset = QUALITY_PRESETS[qualityKey] || QUALITY_PRESETS.standard;
+    const scale = computeAdaptiveScale();
+    pc.getSenders().forEach((sender) => {
+      if (!sender.track || sender.track.kind !== 'video') return;
+      const params = sender.getParameters();
+      params.encodings = params.encodings && params.encodings.length ? params.encodings : [{}];
+      params.encodings[0].maxBitrate = preset.maxBitrate;
+      params.encodings[0].scaleResolutionDownBy = scale;
+      sender.setParameters(params).catch(() => {});
+    });
+  }, [computeAdaptiveScale]);
+
+  const applyQualityToLocalTrack = useCallback(async (qualityKey = 'standard') => {
+    if (!localStreamRef.current || screenSharing) return;
+    const track = localStreamRef.current.getVideoTracks()[0];
+    if (!track?.applyConstraints) return;
+    try {
+      await track.applyConstraints(buildVideoConstraints(qualityKey));
+    } catch {
+      // Some cameras ignore constraints; safe to ignore.
+    }
+  }, [buildVideoConstraints, screenSharing]);
 
   // ── Active speaker detection (P2P mode only) ──
   const activeSpeakers = useActiveSpeaker(remoteStreams);
@@ -108,6 +207,14 @@ export default function VideoMeetComponent() {
     };
   }, []);
 
+  useEffect(() => {
+    if (phase !== 'in-meeting') return;
+    applyQualityToLocalTrack(videoQuality);
+    Object.values(peersRef.current).forEach((pc) => {
+      applyEncodingToPeer(pc, videoQuality);
+    });
+  }, [videoQuality, participantCount, phase, applyEncodingToPeer, applyQualityToLocalTrack]);
+
   /* -------------------- MEDIA -------------------- */
 
   const getLocalMedia = useCallback(async (constraints = { video: true, audio: true }) => {
@@ -126,7 +233,9 @@ export default function VideoMeetComponent() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const qualityKey = videoQualityRef.current || 'standard';
+      const resolved = resolveMediaConstraints(constraints, qualityKey);
+      const stream = await navigator.mediaDevices.getUserMedia(resolved);
       localStreamRef.current = stream;
       
       if (localVideoRef.current) {
@@ -134,8 +243,8 @@ export default function VideoMeetComponent() {
       }
 
       // Update video/audio states
-      setVideoEnabled(constraints.video && stream.getVideoTracks().length > 0);
-      setAudioEnabled(constraints.audio && stream.getAudioTracks().length > 0);
+      setVideoEnabled(resolved.video && stream.getVideoTracks().length > 0);
+      setAudioEnabled(resolved.audio && stream.getAudioTracks().length > 0);
 
       return stream;
     } catch (error) {
@@ -143,7 +252,7 @@ export default function VideoMeetComponent() {
       toast.error("Failed to access camera/microphone. Please allow browser permissions and try again.");
       throw error;
     }
-  }, []);
+  }, [resolveMediaConstraints]);
 
   /**
    * startScreenShare — properly handles screen share:
@@ -227,20 +336,8 @@ export default function VideoMeetComponent() {
 
   const createPeerConnection = useCallback((socketId) => {
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" }
-      ]
-    });
-
-    // Enhanced codec configuration for higher quality
-    pc.setConfiguration({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" }
-      ],
-      // Enable higher bitrate and better codecs
-      sdpSemantics: 'unified-plan'
+      ...ICE_SERVERS,
+      sdpSemantics: 'unified-plan',
     });
 
     pc.onicecandidate = (event) => {
@@ -275,6 +372,15 @@ export default function VideoMeetComponent() {
 
   /* -------------------- MEDIA CONTROLS -------------------- */
 
+  const emitMediaState = useCallback((nextAudio, nextVideo) => {
+    const payload = {
+      audioEnabled: nextAudio,
+      videoEnabled: nextVideo,
+    };
+    setMediaStates(prev => ({ ...prev, [socketIdRef.current]: payload }));
+    socketRef.current?.emit('media-state', payload);
+  }, []);
+
   const toggleVideo = useCallback(() => {
     if (localStreamRef.current) {
       const videoTracks = localStreamRef.current.getVideoTracks();
@@ -282,9 +388,10 @@ export default function VideoMeetComponent() {
         const enabled = !videoTracks[0].enabled;
         videoTracks[0].enabled = enabled;
         setVideoEnabled(enabled);
+        emitMediaState(audioEnabledRef.current, enabled);
       }
     }
-  }, []);
+  }, [emitMediaState]);
 
   const toggleAudio = useCallback(() => {
     if (localStreamRef.current) {
@@ -293,9 +400,10 @@ export default function VideoMeetComponent() {
         const enabled = !audioTracks[0].enabled;
         audioTracks[0].enabled = enabled;
         setAudioEnabled(enabled);
+        emitMediaState(enabled, videoEnabledRef.current);
       }
     }
-  }, []);
+  }, [emitMediaState]);
 
   const toggleScreenShare = useCallback(async () => {
     if (screenSharing) {
@@ -345,19 +453,34 @@ export default function VideoMeetComponent() {
     socketRef.current?.emit('reject-user', { socketId });
   }, []);
 
+  const handleMuteUser = useCallback((socketId) => {
+    socketRef.current?.emit('host-mute-user', { socketId });
+  }, []);
+
+  const handleVideoOffUser = useCallback((socketId) => {
+    socketRef.current?.emit('host-video-off-user', { socketId });
+  }, []);
+
+  const handleMuteAll = useCallback(() => {
+    socketRef.current?.emit('host-mute-all');
+  }, []);
+
+  const handleVideoOffAll = useCallback(() => {
+    socketRef.current?.emit('host-video-off-all');
+  }, []);
+
   /**
    * connectToMeeting — called after admitted event (or instantly for host).
    * Applies pre-chosen media settings then emits join-call.
    */
   const connectToMeeting = useCallback(async () => {
-    const { videoEnabled: v, audioEnabled: a } = prejoinMediaRef.current;
+    const { videoEnabled: v, audioEnabled: a, quality } = prejoinMediaRef.current;
     const currentUsername = usernameRef.current;
     try {
       // Always request FRESH media — the PreJoinCard stream is stopped by its own cleanup
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: v,
-        audio: a,
-      });
+      const qualityKey = quality || videoQualityRef.current || 'standard';
+      const constraints = resolveMediaConstraints({ video: v, audio: a }, qualityKey);
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = s;
       if (localVideoRef.current) localVideoRef.current.srcObject = s;
 
@@ -366,6 +489,8 @@ export default function VideoMeetComponent() {
       s.getAudioTracks().forEach(t => { t.enabled = a; });
       setVideoEnabled(v);
       setAudioEnabled(a);
+      setVideoQuality(qualityKey);
+      emitMediaState(a, v);
 
       socketRef.current?.emit('join-call', window.location.href, currentUsername);
       updatePhase('in-meeting');
@@ -375,7 +500,7 @@ export default function VideoMeetComponent() {
       socketRef.current?.emit('join-call', window.location.href, currentUsername);
       updatePhase('in-meeting');
     }
-  }, [updatePhase]);
+  }, [resolveMediaConstraints, updatePhase, emitMediaState]);
 
   /* ─── Stable function refs (always current, no stale closure issues) ─── */
   const connectToMeetingRef   = useRef(null);
@@ -383,6 +508,7 @@ export default function VideoMeetComponent() {
   const createPeerConnRef     = useRef(null);
   const getLocalMediaRef      = useRef(null);
   const updatePhaseRef        = useRef(null);
+  const applyEncodingRef      = useRef(null);
 
   // Keep refs in sync every render (stable assignments, no extra effects needed)
   connectToMeetingRef.current  = connectToMeeting;
@@ -390,6 +516,7 @@ export default function VideoMeetComponent() {
   createPeerConnRef.current    = createPeerConnection;
   getLocalMediaRef.current     = getLocalMedia;
   updatePhaseRef.current       = updatePhase;
+  applyEncodingRef.current     = applyEncodingToPeer;
 
   /* ─── Trigger flag: set true exactly once when we should create the socket ─── */
   const socketReadyRef = useRef(false);
@@ -444,7 +571,7 @@ export default function VideoMeetComponent() {
 
       socket.on('waiting-room-update', ({ waitlist: wl }) => {
         setWaitlist(wl);
-        if (wl.length > 0) setShowAdmitPanel(true);
+        if (wl.length > 0) setShowHostPanel(true);
       });
 
       socket.on('waiting-room-notification', ({ username: wUsername, count }) => {
@@ -458,6 +585,35 @@ export default function VideoMeetComponent() {
         if (message) toast.error(message);
       });
 
+      socket.on('media-state', ({ socketId, audioEnabled, videoEnabled }) => {
+        if (!socketId) return;
+        setMediaStates(prev => ({
+          ...prev,
+          [socketId]: {
+            audioEnabled: audioEnabled ?? prev[socketId]?.audioEnabled ?? true,
+            videoEnabled: videoEnabled ?? prev[socketId]?.videoEnabled ?? true,
+          },
+        }));
+      });
+
+      socket.on('host-force-mute', () => {
+        if (!localStreamRef.current) return;
+        const tracks = localStreamRef.current.getAudioTracks();
+        tracks.forEach(t => { t.enabled = false; });
+        setAudioEnabled(false);
+        emitMediaState(false, videoEnabledRef.current);
+        toast.warning('Host muted your microphone');
+      });
+
+      socket.on('host-force-video-off', () => {
+        if (!localStreamRef.current) return;
+        const tracks = localStreamRef.current.getVideoTracks();
+        tracks.forEach(t => { t.enabled = false; });
+        setVideoEnabled(false);
+        emitMediaState(audioEnabledRef.current, false);
+        toast.warning('Host turned off your camera');
+      });
+
       socket.on('role-assigned', ({ role }) => {
         setIsHost(role === 'host');
         if (role === 'host') toast.success('You are now the host');
@@ -465,6 +621,9 @@ export default function VideoMeetComponent() {
 
       socket.on('user-joined', async (id, clients, usernames) => {
         if (usernames) setUserNames(usernames);
+        if (id === socket.id) {
+          emitMediaState(audioEnabledRef.current, videoEnabledRef.current);
+        }
         
         // P2P Mesh Optimization: To prevent "glare" (both sides sending an offer at the same time),
         // we use a deterministic rule based on socket.id comparison.
@@ -480,6 +639,7 @@ export default function VideoMeetComponent() {
                 if (!existing) pc.addTrack(track, stream);
               });
             }
+            applyEncodingRef.current?.(pc, videoQualityRef.current);
 
             // Deterministic initiator logic
             if (socket.id < clientId) {
@@ -525,6 +685,7 @@ export default function VideoMeetComponent() {
                    if (!existing) pc.addTrack(track, stream);
                 });
               }
+              applyEncodingRef.current?.(pc, videoQualityRef.current);
 
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
@@ -557,6 +718,7 @@ export default function VideoMeetComponent() {
         if (pc) { pc.close(); delete peersRef.current[socketId]; }
         setRemoteStreams(prev => prev.filter(v => v.id !== socketId));
         setUserNames(prev => { const n = { ...prev }; delete n[socketId]; return n; });
+        setMediaStates(prev => { const n = { ...prev }; delete n[socketId]; return n; });
       });
 
       socket.on('chat-message', (data, sender, sid) => addMessageRef.current(data, sender, sid));
@@ -623,9 +785,10 @@ export default function VideoMeetComponent() {
     return (
       <PreJoinCard
         username={username}
-        onJoin={({ videoEnabled: v, audioEnabled: a }) => {
+        onJoin={({ videoEnabled: v, audioEnabled: a, quality }) => {
           // Only store toggle prefs — stream is stopped by PreJoinCard cleanup
-          prejoinMediaRef.current = { videoEnabled: v, audioEnabled: a };
+          prejoinMediaRef.current = { videoEnabled: v, audioEnabled: a, quality };
+          if (quality) setVideoQuality(quality);
           updatePhase('connecting');
         }}
       />
@@ -902,31 +1065,50 @@ export default function VideoMeetComponent() {
                   <ChatIcon />
                 </IconButton>
               </Badge>
-              {/* Share button — host only */}
-              {isHost && (
-                <IconButton
-                  onClick={() => setShowShareCard(true)}
-                  title="Invite participants"
-                  style={{ color: '#a78bfa' }}
-                >
-                  <PersonAddIcon />
-                </IconButton>
-              )}
-              {/* Waiting room badge — host only */}
+              {/* Host controls panel toggle */}
               {isHost && (
                 <Badge badgeContent={waitlist.length} max={99} color="error">
                   <IconButton
-                    onClick={() => setShowAdmitPanel(p => !p)}
-                    title="Waiting Room"
+                    onClick={() => setShowHostPanel(p => !p)}
+                    title="Host Controls"
                     style={{ color: waitlist.length > 0 ? '#fbbf24' : 'white' }}
                   >
-                    {/* Person queue icon */}
-                    <svg viewBox="0 0 24 24" style={{ width: 22, height: 22 }} fill="currentColor">
-                      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-                    </svg>
+                    <AdminPanelSettingsIcon />
                   </IconButton>
                 </Badge>
               )}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 10px',
+                  borderRadius: 12,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'rgba(15,23,42,0.6)',
+                }}
+              >
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#cbd5f5', letterSpacing: '0.08em' }}>
+                  QUALITY
+                </span>
+                <select
+                  value={videoQuality}
+                  onChange={(e) => setVideoQuality(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    color: 'white',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="low">Low</option>
+                  <option value="standard">Standard</option>
+                  <option value="hd">HD</option>
+                </select>
+              </div>
               <ModeIndicator mode={mode} participantCount={participantCount} />
             </div>
           </div>
@@ -956,12 +1138,23 @@ export default function VideoMeetComponent() {
       )}
 
       {/* ── Host Admit Panel ── */}
-      {isHost && showAdmitPanel && (
-        <HostAdmitPanel
+      {isHost && showHostPanel && (
+        <HostControlPanel
           waitlist={waitlist}
+          participants={Object.keys(userNames).map((socketId) => ({
+            socketId,
+            username: userNames[socketId] || `User ${socketId.slice(-4)}`,
+            isSelf: socketId === socketIdRef.current,
+          }))}
+          mediaStates={mediaStates}
           onAdmit={handleAdmitUser}
           onReject={handleRejectUser}
-          onClose={() => setShowAdmitPanel(false)}
+          onMuteUser={handleMuteUser}
+          onVideoOffUser={handleVideoOffUser}
+          onMuteAll={handleMuteAll}
+          onVideoOffAll={handleVideoOffAll}
+          onOpenShare={() => setShowShareCard(true)}
+          onClose={() => setShowHostPanel(false)}
         />
       )}
     </div>

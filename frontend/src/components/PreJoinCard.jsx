@@ -5,13 +5,25 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
+const QUALITY_OPTIONS = [
+  { key: 'low', label: 'Low', detail: '360p' },
+  { key: 'standard', label: 'Standard', detail: '720p' },
+  { key: 'hd', label: 'HD', detail: '1080p' },
+];
+
+const QUALITY_PRESETS = {
+  low: { width: 640, height: 360, frameRate: 15 },
+  standard: { width: 1280, height: 720, frameRate: 30 },
+  hd: { width: 1920, height: 1080, frameRate: 30 },
+};
+
 /**
  * PreJoinCard — shown to ALL users before they enter the meeting.
  * Shows live camera preview + mic/video toggles.
  *
  * Props:
  *   username   — display name of the current user
- *   onJoin     — callback({ videoEnabled, audioEnabled, stream })
+ *   onJoin     — callback({ videoEnabled, audioEnabled, stream, quality })
  */
 export default function PreJoinCard({ username, onJoin }) {
   const { dark } = useTheme();
@@ -19,29 +31,31 @@ export default function PreJoinCard({ username, onJoin }) {
   const streamRef         = useRef(null);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [videoQuality, setVideoQuality] = useState('standard');
   const [camError, setCamError]         = useState(false);
   const [loading, setLoading]           = useState(false);
   const [micLevel, setMicLevel]         = useState(0);
   const animFrameRef      = useRef(null);
   const analyserRef       = useRef(null);
+  const videoEnabledRef   = useRef(true);
+  const audioEnabledRef   = useRef(true);
 
-  /* ── Start camera preview ── */
-  useEffect(() => {
-    let stream;
-    (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-        startMicMeter(stream);
-      } catch {
-        setCamError(true);
-      }
-    })();
+  useEffect(() => { videoEnabledRef.current = videoEnabled; }, [videoEnabled]);
+  useEffect(() => { audioEnabledRef.current = audioEnabled; }, [audioEnabled]);
 
-    return () => {
-      stream?.getTracks().forEach(t => t.stop());
-      cancelAnimationFrame(animFrameRef.current);
+  const buildPreviewConstraints = useCallback((qualityKey) => {
+    const preset = QUALITY_PRESETS[qualityKey] || QUALITY_PRESETS.standard;
+    return {
+      video: {
+        width: { ideal: preset.width },
+        height: { ideal: preset.height },
+        frameRate: { ideal: preset.frameRate, max: preset.frameRate },
+      },
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     };
   }, []);
 
@@ -65,6 +79,34 @@ export default function PreJoinCard({ username, onJoin }) {
       tick();
     } catch { /* AudioContext might be blocked */ }
   }, []);
+
+  /* ── Start camera preview ── */
+  useEffect(() => {
+    let active = true;
+    const startPreview = async () => {
+      try {
+        setCamError(false);
+        streamRef.current?.getTracks().forEach(t => t.stop());
+        const stream = await navigator.mediaDevices.getUserMedia(buildPreviewConstraints(videoQuality));
+        if (!active) return;
+        streamRef.current = stream;
+        stream.getVideoTracks().forEach(t => { t.enabled = videoEnabledRef.current; });
+        stream.getAudioTracks().forEach(t => { t.enabled = audioEnabledRef.current; });
+        if (videoRef.current) videoRef.current.srcObject = stream;
+        startMicMeter(stream);
+      } catch {
+        setCamError(true);
+      }
+    };
+
+    startPreview();
+
+    return () => {
+      active = false;
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [buildPreviewConstraints, startMicMeter, videoQuality]);
 
   /* ── Toggle video track ── */
   const toggleVideo = useCallback(() => {
@@ -92,12 +134,12 @@ export default function PreJoinCard({ username, onJoin }) {
         stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: audioEnabled });
         streamRef.current = stream;
       }
-      onJoin({ videoEnabled, audioEnabled, stream });
+      onJoin({ videoEnabled, audioEnabled, stream, quality: videoQuality });
     } catch (err) {
       console.error('PreJoinCard join error:', err);
-      onJoin({ videoEnabled: false, audioEnabled: false, stream: null });
+      onJoin({ videoEnabled: false, audioEnabled: false, stream: null, quality: videoQuality });
     }
-  }, [videoEnabled, audioEnabled, onJoin]);
+  }, [videoEnabled, audioEnabled, videoQuality, onJoin]);
 
   const initial = username?.charAt(0)?.toUpperCase() || '?';
 
@@ -306,6 +348,46 @@ export default function PreJoinCard({ username, onJoin }) {
                     }}
                   />
                 </button>
+              </div>
+            </div>
+
+            {/* Quality selector */}
+            <div className="mt-2">
+              <p className={`text-xs font-semibold uppercase tracking-widest mb-2 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+                Video Quality
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {QUALITY_OPTIONS.map((opt) => {
+                  const active = videoQuality === opt.key;
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => setVideoQuality(opt.key)}
+                      style={{
+                        padding: '10px 0',
+                        borderRadius: 12,
+                        border: active
+                          ? '1.5px solid rgba(99,102,241,0.6)'
+                          : dark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e5e7eb',
+                        background: active
+                          ? (dark ? 'rgba(99,102,241,0.2)' : 'rgba(238,242,255,0.9)')
+                          : (dark ? 'rgba(15,23,42,0.4)' : '#f8fafc'),
+                        color: active
+                          ? (dark ? '#c7d2fe' : '#4338ca')
+                          : (dark ? '#9ca3af' : '#64748b'),
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {opt.label}
+                      <span style={{ display: 'block', fontSize: 10, fontWeight: 600, opacity: 0.7 }}>
+                        {opt.detail}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
