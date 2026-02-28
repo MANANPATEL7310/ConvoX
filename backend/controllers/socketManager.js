@@ -54,7 +54,7 @@ const getMeetingCodeFromPath = (path) => {
 /* ─── Hybrid architecture threshold ──────────────────────────────────────
  * ≤ P2P_THRESHOLD → P2P mesh  |  > P2P_THRESHOLD → LiveKit SFU
  * ────────────────────────────────────────────────────────────────────── */
-const P2P_THRESHOLD = 3;
+const P2P_THRESHOLD = 2;
 
 /** Helper: compute + broadcast mode to all users in a room set */
 async function broadcastMode(io, roomKey, roomPath) {
@@ -388,9 +388,19 @@ export const connectToSocket = (server) => {
             if (socketId) io.to(socketId).emit("host-force-mute");
         });
 
+        socket.on("host-unmute-user", async ({ socketId }) => {
+            if (!await ensureHost()) return;
+            if (socketId) io.to(socketId).emit("host-force-unmute");
+        });
+
         socket.on("host-video-off-user", async ({ socketId }) => {
             if (!await ensureHost()) return;
             if (socketId) io.to(socketId).emit("host-force-video-off");
+        });
+
+        socket.on("host-video-on-user", async ({ socketId }) => {
+            if (!await ensureHost()) return;
+            if (socketId) io.to(socketId).emit("host-force-video-on");
         });
 
         socket.on("host-mute-all", async () => {

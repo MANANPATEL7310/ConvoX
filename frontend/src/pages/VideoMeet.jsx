@@ -47,9 +47,9 @@ const ICE_SERVERS = {
 };
 
 const QUALITY_PRESETS = {
-  low: { width: 640, height: 360, frameRate: 15, maxBitrate: 350_000 },
-  standard: { width: 1280, height: 720, frameRate: 30, maxBitrate: 1_200_000 },
-  hd: { width: 1920, height: 1080, frameRate: 30, maxBitrate: 2_500_000 },
+  low: { width: 640, height: 360, frameRate: 15, maxBitrate: 250_000 },
+  standard: { width: 1280, height: 720, frameRate: 24, maxBitrate: 900_000 },
+  hd: { width: 1920, height: 1080, frameRate: 30, maxBitrate: 1_800_000 },
 };
 
 export default function VideoMeetComponent() {
@@ -171,6 +171,7 @@ export default function VideoMeetComponent() {
     pc.getSenders().forEach((sender) => {
       if (!sender.track || sender.track.kind !== 'video') return;
       const params = sender.getParameters();
+      params.degradationPreference = 'balanced';
       params.encodings = params.encodings && params.encodings.length ? params.encodings : [{}];
       params.encodings[0].maxBitrate = preset.maxBitrate;
       params.encodings[0].scaleResolutionDownBy = scale;
@@ -457,8 +458,16 @@ export default function VideoMeetComponent() {
     socketRef.current?.emit('host-mute-user', { socketId });
   }, []);
 
+  const handleUnmuteUser = useCallback((socketId) => {
+    socketRef.current?.emit('host-unmute-user', { socketId });
+  }, []);
+
   const handleVideoOffUser = useCallback((socketId) => {
     socketRef.current?.emit('host-video-off-user', { socketId });
+  }, []);
+
+  const handleVideoOnUser = useCallback((socketId) => {
+    socketRef.current?.emit('host-video-on-user', { socketId });
   }, []);
 
   const handleMuteAll = useCallback(() => {
@@ -605,6 +614,15 @@ export default function VideoMeetComponent() {
         toast.warning('Host muted your microphone');
       });
 
+      socket.on('host-force-unmute', () => {
+        if (!localStreamRef.current) return;
+        const tracks = localStreamRef.current.getAudioTracks();
+        tracks.forEach(t => { t.enabled = true; });
+        setAudioEnabled(true);
+        emitMediaState(true, videoEnabledRef.current);
+        toast.info('Host unmuted your microphone');
+      });
+
       socket.on('host-force-video-off', () => {
         if (!localStreamRef.current) return;
         const tracks = localStreamRef.current.getVideoTracks();
@@ -612,6 +630,15 @@ export default function VideoMeetComponent() {
         setVideoEnabled(false);
         emitMediaState(audioEnabledRef.current, false);
         toast.warning('Host turned off your camera');
+      });
+
+      socket.on('host-force-video-on', () => {
+        if (!localStreamRef.current) return;
+        const tracks = localStreamRef.current.getVideoTracks();
+        tracks.forEach(t => { t.enabled = true; });
+        setVideoEnabled(true);
+        emitMediaState(audioEnabledRef.current, true);
+        toast.info('Host turned on your camera');
       });
 
       socket.on('role-assigned', ({ role }) => {
@@ -1150,7 +1177,9 @@ export default function VideoMeetComponent() {
           onAdmit={handleAdmitUser}
           onReject={handleRejectUser}
           onMuteUser={handleMuteUser}
+          onUnmuteUser={handleUnmuteUser}
           onVideoOffUser={handleVideoOffUser}
+          onVideoOnUser={handleVideoOnUser}
           onMuteAll={handleMuteAll}
           onVideoOffAll={handleVideoOffAll}
           onOpenShare={() => setShowShareCard(true)}

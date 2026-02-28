@@ -10,7 +10,9 @@ export default function HostControlPanel({
   onAdmit,
   onReject,
   onMuteUser,
+  onUnmuteUser,
   onVideoOffUser,
+  onVideoOnUser,
   onMuteAll,
   onVideoOffAll,
   onOpenShare,
@@ -187,22 +189,48 @@ export default function HostControlPanel({
 
                       {!p.isSelf && (
                         <div className="flex gap-1.5">
-                          <button
-                            onClick={() => onMuteUser(p.socketId)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                              dark ? 'bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                            }`}
-                          >
-                            <MicOff className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => onVideoOffUser(p.socketId)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
-                              dark ? 'bg-rose-500/20 text-rose-200 hover:bg-rose-500/30' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-                            }`}
-                          >
-                            <VideoOff className="w-3.5 h-3.5" />
-                          </button>
+                          {audioOn ? (
+                            <button
+                              onClick={() => onMuteUser(p.socketId)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                                dark ? 'bg-amber-500/20 text-amber-200 hover:bg-amber-500/30' : 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                              }`}
+                              title="Mute"
+                            >
+                              <MicOff className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => onUnmuteUser(p.socketId)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                                dark ? 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                              }`}
+                              title="Unmute"
+                            >
+                              <Mic className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {videoOn ? (
+                            <button
+                              onClick={() => onVideoOffUser(p.socketId)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                                dark ? 'bg-rose-500/20 text-rose-200 hover:bg-rose-500/30' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+                              }`}
+                              title="Stop video"
+                            >
+                              <VideoOff className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => onVideoOnUser(p.socketId)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                                dark ? 'bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                              }`}
+                              title="Start video"
+                            >
+                              <Video className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

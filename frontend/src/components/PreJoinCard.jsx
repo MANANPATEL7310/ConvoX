@@ -13,7 +13,7 @@ const QUALITY_OPTIONS = [
 
 const QUALITY_PRESETS = {
   low: { width: 640, height: 360, frameRate: 15 },
-  standard: { width: 1280, height: 720, frameRate: 30 },
+  standard: { width: 1280, height: 720, frameRate: 24 },
   hd: { width: 1920, height: 1080, frameRate: 30 },
 };
 
@@ -42,6 +42,13 @@ export default function PreJoinCard({ username, onJoin }) {
 
   useEffect(() => { videoEnabledRef.current = videoEnabled; }, [videoEnabled]);
   useEffect(() => { audioEnabledRef.current = audioEnabled; }, [audioEnabled]);
+  useEffect(() => {
+    const conn = navigator.connection;
+    if (!conn) return;
+    const downlink = Number(conn.downlink || 0);
+    const poor = conn.effectiveType === '2g' || conn.effectiveType === '3g' || (downlink > 0 && downlink < 1.5);
+    if (poor) setVideoQuality('low');
+  }, []);
 
   const buildPreviewConstraints = useCallback((qualityKey) => {
     const preset = QUALITY_PRESETS[qualityKey] || QUALITY_PRESETS.standard;
