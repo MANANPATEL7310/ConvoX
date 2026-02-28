@@ -12,10 +12,10 @@ export const userVerification = (req, res) => {
     }
     
     try {
-      const user = await User.findById(data.id);
-      if (user) {
-        return res.json({ status: true, user: { id: user._id, name: user.name, username: user.username } });
-      } else {
+        const user = await User.findById(data.id);
+        if (user) {
+        return res.json({ status: true, user: { id: user._id, name: user.name, username: user.username, email: user.email } });
+        } else {
         return res.json({ status: false });
       }
     } catch (error) {

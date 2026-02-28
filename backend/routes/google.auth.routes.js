@@ -42,6 +42,7 @@ function ensureStrategy() {
             user = await User.create({
               name,
               username: baseUsername,
+              email: email.toLowerCase(),
               googleId: profile.id,
               avatar:   profile.photos?.[0]?.value || "",
               password: "",
@@ -49,6 +50,7 @@ function ensureStrategy() {
           } else if (!user.googleId) {
             user.googleId = profile.id;
             user.avatar   = user.avatar || profile.photos?.[0]?.value || "";
+            if (!user.email && email) user.email = email.toLowerCase();
             await user.save();
           }
 

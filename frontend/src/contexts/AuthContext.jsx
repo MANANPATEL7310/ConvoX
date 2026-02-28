@@ -26,6 +26,24 @@ export const AuthProvider = ({ children }) => {
         checkStatus();
     }, [])
 
+    useEffect(() => {
+        if (!user) return;
+        let active = true;
+        const ping = async () => {
+            try {
+                await api.post("/presence");
+            } catch (e) {
+                if (active) console.log(e);
+            }
+        };
+        ping();
+        const interval = setInterval(ping, 60000);
+        return () => {
+            active = false;
+            clearInterval(interval);
+        };
+    }, [user]);
+
     const getProfile = async () => {
         try {
             const response = await api.post("/verify");
@@ -57,11 +75,12 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const handleRegister = async (name, username, password) => {
+    const handleRegister = async (name, username, email, password) => {
         try {
             const request = await api.post("/signup", {
                 name: name,
                 username: username,
+                email: email,
                 password: password
             });
             
@@ -120,5 +139,3 @@ export const AuthProvider = ({ children }) => {
         </AuthContext.Provider>
     );
 };
-
-

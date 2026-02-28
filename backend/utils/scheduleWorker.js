@@ -1,4 +1,6 @@
 import { ScheduledMeeting } from "../models/ScheduledMeeting.js";
+import { User } from "../models/User.js";
+import { Notification } from "../models/Notification.js";
 import { sendEmail } from "./mailer.js";
 import {
   renderFiveMinuteReminder,
@@ -9,6 +11,7 @@ import {
 const CHECK_EVERY_MS = 60 * 1000;
 let intervalId = null;
 let isRunning = false;
+const ONLINE_GRACE_MS = 2 * 60 * 1000;
 
 const getRecipientLists = (meeting) => {
   const hostEmail = meeting.hostEmail?.trim().toLowerCase();
@@ -36,6 +39,41 @@ const sendToAttendees = async ({ meeting, subject, html }) => {
   }
 };
 
+const isUserOnline = async (userId) => {
+  if (!userId) return false;
+  const user = await User.findById(userId).select("lastActiveAt").lean();
+  if (!user?.lastActiveAt) return false;
+  return Date.now() - new Date(user.lastActiveAt).getTime() <= ONLINE_GRACE_MS;
+};
+
+const notifyUser = async ({ userId, meeting, type, message }) => {
+  if (!userId) return;
+  await Notification.create({
+    userId,
+    meetingId: meeting._id,
+    meetingCode: meeting.meetingCode,
+    meetingTitle: meeting.title,
+    scheduledFor: meeting.scheduledFor,
+    type,
+    message,
+  });
+};
+
+const notifyParticipantsByEmail = async (meeting, message, type = "meeting-started") => {
+  if (!Array.isArray(meeting.attendees) || meeting.attendees.length === 0) return;
+  const emails = meeting.attendees.map((email) => email.trim().toLowerCase());
+  const users = await User.find({ email: { $in: emails } }).select("_id email").lean();
+  const userIds = users.map((u) => u._id);
+  for (const userId of userIds) {
+    await notifyUser({
+      userId,
+      meeting,
+      type,
+      message,
+    });
+  }
+};
+
 const runScheduleTick = async () => {
   if (isRunning) return;
   isRunning = true;
@@ -52,18 +90,28 @@ const runScheduleTick = async () => {
 
     for (const meeting of tenMinuteMeetings) {
       try {
-        const html = renderTenMinuteReminder({
-          hostName: meeting.hostName,
-          meetingTitle: meeting.title,
-          meetingUrl: meeting.meetingUrl,
-          scheduledFor: meeting.scheduledFor,
+        await notifyUser({
+          userId: meeting.hostUserId,
+          meeting,
+          type: "host-reminder-10",
+          message: `Your meeting \"${meeting.title}\" starts in 10 minutes.`,
         });
 
-        await sendToHostOnly({
-          meeting,
-          subject: `Reminder: ${meeting.title} starts in 10 minutes`,
-          html,
-        });
+        const hostOnline = await isUserOnline(meeting.hostUserId);
+        if (!hostOnline) {
+          const html = renderTenMinuteReminder({
+            hostName: meeting.hostName,
+            meetingTitle: meeting.title,
+            meetingUrl: meeting.meetingUrl,
+            scheduledFor: meeting.scheduledFor,
+          });
+
+          await sendToHostOnly({
+            meeting,
+            subject: `Reminder: ${meeting.title} starts in 10 minutes`,
+            html,
+          });
+        }
 
         meeting.reminder10Sent = true;
         await meeting.save();
@@ -85,7 +133,6 @@ const runScheduleTick = async () => {
           meetingTitle: meeting.title,
           meetingUrl: meeting.meetingUrl,
           scheduledFor: meeting.scheduledFor,
-          timezone: meeting.timezone,
         });
 
         await sendToHostOnly({
@@ -115,17 +162,33 @@ const runScheduleTick = async () => {
 
     for (const meeting of startingMeetings) {
       try {
-        const html = renderStartReminder({
-          hostName: meeting.hostName,
-          meetingTitle: meeting.title,
-          meetingUrl: meeting.meetingUrl,
+        await notifyUser({
+          userId: meeting.hostUserId,
+          meeting,
+          type: "host-start",
+          message: `Your meeting \"${meeting.title}\" is starting now.`,
         });
 
-        await sendToHostOnly({
+        await notifyParticipantsByEmail(
           meeting,
-          subject: `Starting now: ${meeting.title}`,
-          html,
-        });
+          `Meeting \"${meeting.title}\" is starting now.`,
+          "meeting-started"
+        );
+
+        const hostOnline = await isUserOnline(meeting.hostUserId);
+        if (!hostOnline) {
+          const html = renderStartReminder({
+            hostName: meeting.hostName,
+            meetingTitle: meeting.title,
+            meetingUrl: meeting.meetingUrl,
+          });
+
+          await sendToHostOnly({
+            meeting,
+            subject: `Starting now: ${meeting.title}`,
+            html,
+          });
+        }
 
         meeting.startSent = true;
         meeting.status = "started";

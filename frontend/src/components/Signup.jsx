@@ -12,7 +12,7 @@ const Signup = ({ onSwitchToLogin }) => {
     e.preventDefault();
     setError('');
     try {
-      await register(username, email, password);
+      await register(username, username, email, password);
     } catch {
       setError('Registration failed. Please try again.');
     }

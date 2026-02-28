@@ -57,7 +57,7 @@ export const renderScheduleConfirmation = ({
   return renderFrame({
     title: "Meeting scheduled",
     body,
-    footer: "We will remind you 10 minutes and 5 minutes before start time.",
+    footer: "We'll notify you in ConvoX, plus a 5-minute email reminder.",
   });
 };
 

@@ -1,6 +1,7 @@
 import express from "express";
 import { verifyToken } from "../middlewares/authMiddleware.js";
 import { ScheduledMeeting } from "../models/ScheduledMeeting.js";
+import { Notification } from "../models/Notification.js";
 import { sendEmail } from "../utils/mailer.js";
 import {
   renderScheduleConfirmation,
@@ -43,7 +44,10 @@ router.post("/", verifyToken, async (req, res) => {
     }
 
     const attendeeList = Array.isArray(attendees)
-      ? attendees.map(normalizeEmail).filter((email) => emailRegex.test(email || ""))
+      ? attendees
+          .map(normalizeEmail)
+          .filter((email) => emailRegex.test(email || ""))
+          .filter((email) => email !== hostEmailNormalized)
       : [];
 
     const meetingTitle = title?.trim() || "Scheduled Meeting";
@@ -80,6 +84,16 @@ router.post("/", verifyToken, async (req, res) => {
       scheduledFor: parsedDate,
       timezone: "Asia/Kolkata",
       attendees: attendeeList,
+    });
+
+    await Notification.create({
+      userId: req.user._id,
+      meetingId: meeting._id,
+      meetingCode: meeting.meetingCode,
+      meetingTitle: meeting.title,
+      scheduledFor: meeting.scheduledFor,
+      type: "meeting-scheduled",
+      message: `Meeting \"${meetingTitle}\" scheduled successfully.`,
     });
 
     const confirmationHtml = renderScheduleConfirmation({

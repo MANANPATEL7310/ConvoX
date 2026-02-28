@@ -35,6 +35,7 @@ export default function ScheduleMeetingCard({
   meetingUrl,
   meetingCode,
   senderName,
+  hostEmailDefault,
   onClose,
   onScheduled,
 }) {
@@ -42,7 +43,7 @@ export default function ScheduleMeetingCard({
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [title, setTitle] = useState(() => (senderName ? `${senderName}'s meeting` : ''));
-  const [hostEmail, setHostEmail] = useState('');
+  const [hostEmail, setHostEmail] = useState(hostEmailDefault || '');
   const [emailInput, setEmailInput] = useState('');
   const [emails, setEmails] = useState([]);
 

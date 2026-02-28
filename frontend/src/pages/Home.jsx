@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   History, LogOut, Video, Zap, Shield,
   ArrowRight, Users, Clock, Link as LinkIcon,
-  Copy, Check, Sparkles, MonitorPlay, Wifi, Globe
+  Copy, Check, Sparkles, MonitorPlay, Wifi, Globe, Bell
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -114,6 +114,8 @@ export default function HomeComponent() {
   const [scheduledMeetings, setScheduledMeetings] = useState([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [copiedScheduleId, setCopiedScheduleId] = useState(null);
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
   const { user, logout, addToUserHistory } = useAuth();
   const { dark } = useTheme();
 
@@ -167,6 +169,42 @@ export default function HomeComponent() {
     fetchScheduled();
     return () => { active = false; };
   }, [user]);
+
+  const loadNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await axios.get(`${server_url}/api/v1/notifications`, { withCredentials: true });
+      setNotifications(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const tick = async () => {
+      if (!active) return;
+      await loadNotifications();
+    };
+    tick();
+    const interval = setInterval(tick, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [user, loadNotifications]);
+
+  const unreadCount = useMemo(() => notifications.filter(n => !n.readAt).length, [notifications]);
+
+  const markAllRead = useCallback(async () => {
+    try {
+      await axios.post(`${server_url}/api/v1/notifications/mark-read`, {}, { withCredentials: true });
+      setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
+    } catch (err) {
+      console.error('Failed to mark notifications read:', err);
+    }
+  }, []);
 
   const upcomingMeetings = useMemo(() => {
     const list = scheduledMeetings.filter(m => m.status === 'scheduled');
@@ -247,6 +285,73 @@ export default function HomeComponent() {
             {/* Nav right */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-1.5 sm:gap-2">
               <ThemeToggle />
+              {user && (
+                <div className="relative">
+                  <button
+                    onClick={async () => {
+                      const next = !notifOpen;
+                      setNotifOpen(next);
+                      if (next && unreadCount > 0) {
+                        await markAllRead();
+                      }
+                    }}
+                    className={`relative h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
+                      dark
+                        ? 'text-gray-400 hover:text-white hover:bg-white/[0.06]'
+                        : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80'
+                    }`}
+                    title="Notifications"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold bg-rose-500 text-white flex items-center justify-center">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {notifOpen && (
+                    <div className={`absolute right-0 mt-2 w-80 rounded-2xl border shadow-2xl z-50 ${
+                      dark
+                        ? 'bg-gray-900 border-white/[0.08] shadow-black/60'
+                        : 'bg-white border-gray-200/60 shadow-gray-400/20'
+                    }`}>
+                      <div className={`px-4 py-3 border-b flex items-center justify-between ${
+                        dark ? 'border-white/[0.06]' : 'border-gray-100'
+                      }`}>
+                        <span className={`text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>Notifications</span>
+                        <button
+                          onClick={() => setNotifOpen(false)}
+                          className={`text-xs font-semibold ${dark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+                        >
+                          Close
+                        </button>
+                      </div>
+
+                      <div className="max-h-80 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="px-4 py-8 text-center">
+                            <p className={`text-sm ${dark ? 'text-gray-500' : 'text-gray-400'}`}>No notifications yet.</p>
+                          </div>
+                        ) : (
+                          notifications.map((n) => (
+                            <div key={n._id} className={`px-4 py-3 border-b last:border-b-0 ${
+                              dark ? 'border-white/[0.04]' : 'border-gray-100'
+                            }`}>
+                              <p className={`text-sm ${dark ? 'text-white' : 'text-gray-900'}`}>{n.message}</p>
+                              {n.scheduledFor && (
+                                <p className={`text-[11px] mt-1 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  {formatIST(n.scheduledFor)} (IST)
+                                </p>
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <Button variant="ghost" onClick={() => navigate('/history')}
                 className={`flex items-center gap-1.5 text-sm font-medium px-3 h-9 rounded-lg ${
                   dark ? 'text-gray-400 hover:text-white hover:bg-white/[0.06]' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80'
@@ -631,6 +736,7 @@ export default function HomeComponent() {
           meetingUrl={scheduleState.url}
           meetingCode={scheduleState.code}
           senderName={user?.username || 'Someone'}
+          hostEmailDefault={user?.email || ''}
           onClose={() => setScheduleState(null)}
           onScheduled={handleScheduled}
         />

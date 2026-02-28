@@ -5,11 +5,18 @@ import bcrypt from "bcrypt";
 
 export const Signup = async (req, res) => {
     try {
-        const { name, username, password } = req.body;
+        const { name, username, email, password } = req.body;
         
         // Input validation
         if (!name || !username || !password) {
             return res.status(400).json({ message: "All fields are required" });
+        }
+
+        if (email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email.trim())) {
+                return res.status(400).json({ message: "Invalid email address" });
+            }
         }
         
         if (password.length < 6) {
@@ -24,12 +31,20 @@ export const Signup = async (req, res) => {
         if (existingUser) {
             return res.status(409).json({ message: "User already exists" });
         }
+
+        if (email) {
+            const existingEmail = await User.findOne({ email: email.trim().toLowerCase() });
+            if (existingEmail) {
+                return res.status(409).json({ message: "Email already in use" });
+            }
+        }
         
         const hashedPassword = await bcrypt.hash(password, 12);
         
         const user = await User.create({
             name,
             username,
+            email: email ? email.trim().toLowerCase() : null,
             password: hashedPassword,
         });
 
@@ -42,7 +57,7 @@ export const Signup = async (req, res) => {
             maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
         });
 
-        res.status(201).json({ message: "User signed up successfully", success: true, user: { id: user._id, name: user.name, username: user.username } });
+        res.status(201).json({ message: "User signed up successfully", success: true, user: { id: user._id, name: user.name, username: user.username, email: user.email } });
     } catch (error) {
         console.error("Signup error:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -77,7 +92,7 @@ export const Login = async (req, res) => {
             maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
         });
         
-        res.status(200).json({ message: "User logged in successfully", success: true, user: { id: user._id, name: user.name, username: user.username } });
+        res.status(200).json({ message: "User logged in successfully", success: true, user: { id: user._id, name: user.name, username: user.username, email: user.email } });
     } catch (error) {
         console.error("Login error:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -128,6 +143,16 @@ export const addToHistory = async (req, res) => {
     }
 }
 
+export const updatePresence = async (req, res) => {
+    try {
+        req.user.lastActiveAt = new Date();
+        await req.user.save();
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Presence update error:", e);
+        res.status(500).json({ message: "Failed to update presence" });
+    }
+}
 
 export const getUserHistory = async (req, res) => {
     try {

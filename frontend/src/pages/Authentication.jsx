@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../contexts/useAuth";
 import { toast } from "sonner";
-import { User, Lock, Eye, EyeOff, Video, ArrowRight, Sparkles, Shield, Zap, Users } from "lucide-react";
+import { User, Lock, Eye, EyeOff, Video, ArrowRight, Sparkles, Shield, Zap, Users, Mail } from "lucide-react";
 import PageWrapper from "../components/PageWrapper";
 import ThemeToggle from "../components/ThemeToggle";
 import { useTheme } from "../contexts/ThemeContext";
@@ -42,8 +42,8 @@ const Authentication = () => {
   const { dark } = useTheme();
   const [isLogin, setIsLogin]               = useState(true);
   const [showPassword, setShowPassword]     = useState(false);
-  const [inputValue, setInputValue]         = useState({ password: '', username: '', name: '' });
-  const { password, username, name }        = inputValue;
+  const [inputValue, setInputValue]         = useState({ password: '', username: '', name: '', email: '' });
+  const { password, username, name, email }        = inputValue;
   const { login, register }                 = useAuth();
   const [loading, setLoading]               = useState(false);
   const [focusedField, setFocusedField]     = useState(null);
@@ -63,7 +63,7 @@ const Authentication = () => {
         await login(username, password);
         toast.success('Welcome back! 👋');
       } else {
-        await register(name, username, password);
+        await register(name, username, email, password);
         toast.success('Account created! 🎉');
       }
       setTimeout(() => navigate('/home'), 700);
@@ -180,7 +180,7 @@ const Authentication = () => {
                   <button
                     key={tabLabel}
                     type="button"
-                    onClick={() => { setIsLogin(isLoginTab); setInputValue({ password: '', username: '', name: '' }); setShowPassword(false); }}
+                    onClick={() => { setIsLogin(isLoginTab); setInputValue({ password: '', username: '', name: '', email: '' }); setShowPassword(false); }}
                     style={{
                       flex: 1,
                       padding: '10px 0',
@@ -248,6 +248,23 @@ const Authentication = () => {
                       className={`${inputBase} pl-10 pr-4 py-3 ${inputTheme}`} />
                   </div>
                 </div>
+
+                <AnimatePresence mode="wait" initial={false}>
+                  {!isLogin && (
+                    <motion.div key="email" custom={1} variants={slide} initial="initial" animate="animate" exit="exit" className="space-y-1.5">
+                      <label className={`block text-xs font-bold uppercase tracking-widest ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Email
+                      </label>
+                      <div className="relative">
+                        <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none transition-colors ${focusedField === 'email' ? 'text-indigo-500' : dark ? 'text-gray-500' : 'text-gray-400'}`} />
+                        <input type="email" name="email" value={email} onChange={handleChange}
+                          onFocus={() => setFocusedField('email')} onBlur={() => setFocusedField(null)}
+                          required={!isLogin} placeholder="you@example.com"
+                          className={`${inputBase} pl-10 pr-4 py-3 ${inputTheme}`} />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Password */}
                 <div className="space-y-1.5">

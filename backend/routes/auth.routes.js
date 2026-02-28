@@ -1,4 +1,4 @@
-import { Signup, Login, addToHistory, getUserHistory, Logout } from "../controllers/authController.js";
+import { Signup, Login, addToHistory, getUserHistory, Logout, updatePresence } from "../controllers/authController.js";
 import { verifyToken, userVerification } from "../middlewares/authMiddleware.js";
 import express from "express";
 
@@ -10,5 +10,6 @@ router.post("/verify", userVerification);
 router.post("/logout", Logout);
 router.post("/add_history", verifyToken, addToHistory);
 router.get("/get_history", verifyToken, getUserHistory);
+router.post("/presence", verifyToken, updatePresence);
 
 export default router;
