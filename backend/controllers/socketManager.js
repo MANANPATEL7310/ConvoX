@@ -282,10 +282,23 @@ export const connectToSocket = (server) => {
             // ── Host role: first user in the room becomes host ──
             const hostKey = `host:${path}`;
             let currentHost = await client.get(hostKey);
+            const meetingCode = getMeetingCodeFromPath(path);
+            const scheduledMeeting = meetingCode
+                ? await ScheduledMeeting.findOne({
+                    meetingCode,
+                    status: { $in: ["scheduled", "started"] },
+                }).sort({ scheduledFor: -1 })
+                : null;
+            const isHostUser = scheduledMeeting
+                ? String(scheduledMeeting.hostUserId) === String(socket.data.userId)
+                : false;
+
             if (!currentHost) {
-                await client.set(hostKey, socket.id);
-                currentHost = socket.id;
-                console.log(`Room ${path}: ${socket.id} is now the HOST`);
+                if (!scheduledMeeting || isHostUser) {
+                    await client.set(hostKey, socket.id);
+                    currentHost = socket.id;
+                    console.log(`Room ${path}: ${socket.id} is now the HOST`);
+                }
             }
 
             // Tell the joining user their role
@@ -409,11 +422,27 @@ export const connectToSocket = (server) => {
                             // Host did not reconnect to claim a new socket.id
                             const newRemaining = await client.sMembers(roomKey);
                             if (newRemaining.length > 0) {
-                                const newHost = newRemaining[0];
+                                const meetingCode = getMeetingCodeFromPath(roomPath);
+                                const scheduledMeeting = meetingCode
+                                    ? await ScheduledMeeting.findOne({
+                                        meetingCode,
+                                        status: { $in: ["scheduled", "started"] },
+                                    }).sort({ scheduledFor: -1 })
+                                    : null;
+
+                                let newHost = newRemaining[0];
+                                if (scheduledMeeting) {
+                                    const hostSocket = newRemaining.find((id) => {
+                                        const sock = io.sockets.sockets.get(id);
+                                        return sock && String(sock.data.userId) === String(scheduledMeeting.hostUserId);
+                                    });
+                                    if (hostSocket) newHost = hostSocket;
+                                }
+
                                 const newHostName = socketUsernames.get(newHost);
                                 await client.set(hostKey, newHost);
                                 if (newHostName) await client.set(hostNameKey, newHostName);
-                                
+
                                 io.to(newHost).emit("role-assigned", { role: 'host' });
                                 await broadcastWaitlist(io, roomPath);
                                 console.log(`Room ${roomPath}: host left permanently → ${newHost} promoted`);

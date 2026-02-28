@@ -6,6 +6,8 @@ import { sendEmail } from "../utils/mailer.js";
 import {
   renderScheduleConfirmation,
   renderScheduleInvite,
+  renderScheduleUpdatedHost,
+  renderScheduleUpdatedInvite,
 } from "../utils/scheduleTemplates.js";
 
 const router = express.Router();
@@ -144,6 +146,110 @@ router.get("/", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Schedule list error:", error);
     return res.status(500).json({ message: "Failed to fetch scheduled meetings." });
+  }
+});
+
+router.put("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, scheduledFor, hostEmail, attendees } = req.body;
+
+    const meeting = await ScheduledMeeting.findOne({ _id: id, hostUserId: req.user._id });
+    if (!meeting) {
+      return res.status(404).json({ message: "Meeting not found." });
+    }
+
+    if (meeting.status !== "scheduled") {
+      return res.status(400).json({ message: "Only scheduled meetings can be edited." });
+    }
+
+    let parsedDate = meeting.scheduledFor;
+    if (scheduledFor) {
+      parsedDate = new Date(scheduledFor);
+      if (Number.isNaN(parsedDate.getTime())) {
+        return res.status(400).json({ message: "Valid scheduled time is required." });
+      }
+      if (parsedDate <= new Date()) {
+        return res.status(400).json({ message: "Scheduled time must be in the future." });
+      }
+    }
+
+    if (hostEmail) {
+      const hostEmailNormalized = normalizeEmail(hostEmail);
+      if (!hostEmailNormalized || !emailRegex.test(hostEmailNormalized)) {
+        return res.status(400).json({ message: "A valid host email is required." });
+      }
+      meeting.hostEmail = hostEmailNormalized;
+    }
+
+    if (Array.isArray(attendees)) {
+      const attendeeList = attendees
+        .map(normalizeEmail)
+        .filter((email) => emailRegex.test(email || ""))
+        .filter((email) => email !== meeting.hostEmail);
+      meeting.attendees = attendeeList;
+    }
+
+    if (title !== undefined) {
+      meeting.title = title.trim() || "Scheduled Meeting";
+    }
+
+    const scheduleChanged = meeting.scheduledFor.getTime() !== parsedDate.getTime();
+    meeting.scheduledFor = parsedDate;
+
+    if (scheduleChanged) {
+      meeting.reminder10Sent = false;
+      meeting.reminder5Sent = false;
+      meeting.startSent = false;
+      meeting.status = "scheduled";
+    }
+
+    await meeting.save();
+
+    await Notification.create({
+      userId: req.user._id,
+      meetingId: meeting._id,
+      meetingCode: meeting.meetingCode,
+      meetingTitle: meeting.title,
+      scheduledFor: meeting.scheduledFor,
+      type: "meeting-updated",
+      message: `Meeting \"${meeting.title}\" was updated.`,
+    });
+
+    const hostUpdateHtml = renderScheduleUpdatedHost({
+      hostName: meeting.hostName,
+      meetingTitle: meeting.title,
+      meetingUrl: meeting.meetingUrl,
+      scheduledFor: meeting.scheduledFor,
+    });
+
+    await sendEmail({
+      to: meeting.hostEmail,
+      subject: `Updated: ${meeting.title}`,
+      html: hostUpdateHtml,
+    });
+
+    if (meeting.attendees?.length > 0) {
+      const attendeeUpdateHtml = renderScheduleUpdatedInvite({
+        hostName: meeting.hostName,
+        meetingTitle: meeting.title,
+        meetingUrl: meeting.meetingUrl,
+        scheduledFor: meeting.scheduledFor,
+      });
+
+      for (const attendeeEmail of meeting.attendees) {
+        await sendEmail({
+          to: attendeeEmail,
+          subject: `Updated invite: ${meeting.title}`,
+          html: attendeeUpdateHtml,
+        });
+      }
+    }
+
+    return res.json({ meeting });
+  } catch (error) {
+    console.error("Schedule update error:", error);
+    return res.status(500).json({ message: "Failed to update meeting." });
   }
 });
 

@@ -39,14 +39,15 @@ function ensureStrategy() {
           });
 
           if (!user) {
-            user = await User.create({
+            const payload = {
               name,
               username: baseUsername,
-              email: email.toLowerCase(),
               googleId: profile.id,
               avatar:   profile.photos?.[0]?.value || "",
               password: "",
-            });
+            };
+            if (email) payload.email = email.toLowerCase();
+            user = await User.create(payload);
           } else if (!user.googleId) {
             user.googleId = profile.id;
             user.avatar   = user.avatar || profile.photos?.[0]?.value || "";

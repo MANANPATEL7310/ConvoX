@@ -41,12 +41,16 @@ export const Signup = async (req, res) => {
         
         const hashedPassword = await bcrypt.hash(password, 12);
         
-        const user = await User.create({
+        const userPayload = {
             name,
             username,
-            email: email ? email.trim().toLowerCase() : null,
             password: hashedPassword,
-        });
+        };
+        if (email) {
+            userPayload.email = email.trim().toLowerCase();
+        }
+
+        const user = await User.create(userPayload);
 
         const token = createSecretToken(user._id);
         res.cookie("token", token, {

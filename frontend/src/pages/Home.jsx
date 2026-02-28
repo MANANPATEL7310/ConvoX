@@ -245,7 +245,7 @@ export default function HomeComponent() {
       }
       case 'schedule': {
         const code = generateRoomCode();
-        setScheduleState({ code, url: `${APP_URL}/${code}` });
+        setScheduleState({ mode: 'create', code, url: `${APP_URL}/${code}` });
         break;
       }
       case 'share-link': {
@@ -560,6 +560,18 @@ export default function HomeComponent() {
                               )}
                             </Button>
                             <Button
+                              onClick={() => {
+                                setScheduleState({ mode: 'edit', meeting });
+                              }}
+                              className={`h-9 px-3 rounded-lg text-xs font-semibold ${
+                                dark
+                                  ? 'bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30'
+                                  : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                              }`}
+                            >
+                              Edit
+                            </Button>
+                            <Button
                               onClick={async () => {
                                 await addToUserHistory(meeting.meetingCode);
                                 navigate(`/${meeting.meetingCode}`);
@@ -731,12 +743,28 @@ export default function HomeComponent() {
       )}
 
       {/* ── Schedule Meeting Card overlay ── */}
-      {scheduleState && (
+      {scheduleState && scheduleState.mode === 'create' && (
         <ScheduleMeetingCard
           meetingUrl={scheduleState.url}
           meetingCode={scheduleState.code}
           senderName={user?.username || 'Someone'}
           hostEmailDefault={user?.email || ''}
+          onClose={() => setScheduleState(null)}
+          onScheduled={handleScheduled}
+        />
+      )}
+
+      {scheduleState && scheduleState.mode === 'edit' && scheduleState.meeting && (
+        <ScheduleMeetingCard
+          mode="edit"
+          meetingId={scheduleState.meeting._id}
+          meetingUrl={scheduleState.meeting.meetingUrl}
+          meetingCode={scheduleState.meeting.meetingCode}
+          senderName={user?.username || 'Someone'}
+          hostEmailDefault={scheduleState.meeting.hostEmail || user?.email || ''}
+          initialTitle={scheduleState.meeting.title}
+          initialScheduledFor={scheduleState.meeting.scheduledFor}
+          initialAttendees={scheduleState.meeting.attendees || []}
           onClose={() => setScheduleState(null)}
           onScheduled={handleScheduled}
         />

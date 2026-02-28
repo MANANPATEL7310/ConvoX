@@ -36,20 +36,31 @@ export default function ScheduleMeetingCard({
   meetingCode,
   senderName,
   hostEmailDefault,
+  mode = 'create',
+  meetingId,
+  initialTitle,
+  initialScheduledFor,
+  initialAttendees,
   onClose,
   onScheduled,
 }) {
   const { dark } = useTheme();
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
-  const [title, setTitle] = useState(() => (senderName ? `${senderName}'s meeting` : ''));
+  const [title, setTitle] = useState(() => {
+    if (initialTitle) return initialTitle;
+    return senderName ? `${senderName}'s meeting` : '';
+  });
   const [hostEmail, setHostEmail] = useState(hostEmailDefault || '');
   const [emailInput, setEmailInput] = useState('');
-  const [emails, setEmails] = useState([]);
+  const [emails, setEmails] = useState(() => initialAttendees || []);
 
   const timezone = 'IST (Asia/Kolkata)';
 
   const [scheduledFor, setScheduledFor] = useState(() => {
+    if (initialScheduledFor) {
+      return formatIstInput(new Date(initialScheduledFor));
+    }
     const defaultDate = new Date(Date.now() + 30 * 60 * 1000);
     return formatIstInput(defaultDate);
   });
@@ -123,20 +134,31 @@ export default function ScheduleMeetingCard({
     try {
       const payload = {
         title: title.trim(),
-        meetingCode,
-        meetingUrl,
         scheduledFor: parsedDate.toISOString(),
         timezone: 'Asia/Kolkata',
         hostEmail: hostEmail.trim(),
         attendees: emails,
       };
 
-      const { data } = await axios.post(`${server_url}/api/v1/schedule`, payload, {
-        withCredentials: true,
-      });
+      if (mode === 'edit' && meetingId) {
+        const { data } = await axios.put(`${server_url}/api/v1/schedule/${meetingId}`, payload, {
+          withCredentials: true,
+        });
+        toast.success('Meeting updated.');
+        onScheduled?.(data.meeting);
+      } else {
+        const createPayload = {
+          ...payload,
+          meetingCode,
+          meetingUrl,
+        };
+        const { data } = await axios.post(`${server_url}/api/v1/schedule`, createPayload, {
+          withCredentials: true,
+        });
+        toast.success('Meeting scheduled. Reminders will be sent by email.');
+        onScheduled?.(data.meeting);
+      }
 
-      toast.success('Meeting scheduled. Reminders will be sent by email.');
-      onScheduled?.(data.meeting);
       onClose();
     } catch (err) {
       console.error('Schedule meeting error:', err);
@@ -358,7 +380,11 @@ export default function ScheduleMeetingCard({
               disabled={sending}
               className="w-full h-11 text-sm font-semibold bg-gradient-to-r from-orange-600 to-rose-600 hover:from-orange-500 hover:to-rose-500 text-white rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all"
             >
-              {sending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Scheduling...</> : 'Schedule Meeting'}
+              {sending ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {mode === 'edit' ? 'Saving...' : 'Scheduling...'}</>
+              ) : (
+                mode === 'edit' ? 'Save Changes' : 'Schedule Meeting'
+              )}
             </Button>
           </div>
         </motion.div>

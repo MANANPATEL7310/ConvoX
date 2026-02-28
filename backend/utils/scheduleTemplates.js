@@ -93,6 +93,59 @@ export const renderScheduleInvite = ({
   });
 };
 
+export const renderScheduleUpdatedHost = ({
+  hostName,
+  meetingTitle,
+  meetingUrl,
+  scheduledFor,
+}) => {
+  const timeLabel = formatMeetingTime(scheduledFor);
+  const body = `
+    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+      Hi ${hostName || "there"}, your meeting details were updated.
+    </p>
+    <p style="color: #1e293b; font-size: 14px; margin: 0 0 6px 0;"><strong>Title:</strong> ${meetingTitle}</p>
+    <p style="color: #1e293b; font-size: 14px; margin: 0 0 14px 0;"><strong>When:</strong> ${timeLabel} (IST)</p>
+    <a href="${meetingUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; text-decoration: none; font-weight: 600; font-size: 14px; padding: 11px 28px; border-radius: 12px; box-shadow: 0 4px 14px rgba(99,102,241,0.3);">
+      Open Meeting
+    </a>
+  `;
+
+  return renderFrame({
+    title: "Meeting updated",
+    body,
+    footer: "We'll notify you in ConvoX and send the 5-minute email reminder.",
+  });
+};
+
+export const renderScheduleUpdatedInvite = ({
+  hostName,
+  meetingTitle,
+  meetingUrl,
+  scheduledFor,
+}) => {
+  const timeLabel = formatMeetingTime(scheduledFor);
+  const body = `
+    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">
+      ${hostName || "Someone"} updated a scheduled ConvoX meeting.
+    </p>
+    <p style="color: #1e293b; font-size: 14px; margin: 0 0 6px 0;"><strong>Title:</strong> ${meetingTitle}</p>
+    <p style="color: #1e293b; font-size: 14px; margin: 0 0 10px 0;"><strong>When:</strong> ${timeLabel} (IST)</p>
+    <p style="color: #64748b; font-size: 13px; margin: 0 0 14px 0;">
+      If you join early, you'll wait in the waiting room until the host admits you.
+    </p>
+    <a href="${meetingUrl}" style="display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; text-decoration: none; font-weight: 600; font-size: 14px; padding: 11px 28px; border-radius: 12px; box-shadow: 0 4px 14px rgba(99,102,241,0.3);">
+      Join Meeting
+    </a>
+  `;
+
+  return renderFrame({
+    title: "Meeting updated",
+    body,
+    footer: "Update your calendar so you don't miss it.",
+  });
+};
+
 export const renderFiveMinuteReminder = ({
   hostName,
   meetingTitle,

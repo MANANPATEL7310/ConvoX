@@ -59,7 +59,7 @@ const notifyUser = async ({ userId, meeting, type, message }) => {
   });
 };
 
-const notifyParticipantsByEmail = async (meeting, message, type = "meeting-started") => {
+const notifyParticipantsInApp = async (meeting, message, type = "meeting-started") => {
   if (!Array.isArray(meeting.attendees) || meeting.attendees.length === 0) return;
   const emails = meeting.attendees.map((email) => email.trim().toLowerCase());
   const users = await User.find({ email: { $in: emails } }).select("_id email").lean();
@@ -169,7 +169,7 @@ const runScheduleTick = async () => {
           message: `Your meeting \"${meeting.title}\" is starting now.`,
         });
 
-        await notifyParticipantsByEmail(
+        await notifyParticipantsInApp(
           meeting,
           `Meeting \"${meeting.title}\" is starting now.`,
           "meeting-started"
