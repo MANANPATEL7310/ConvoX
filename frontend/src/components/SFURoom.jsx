@@ -19,6 +19,8 @@ import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import PanToolIcon from '@mui/icons-material/PanTool';
 import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import SubtitlesIcon from '@mui/icons-material/Subtitles';
+import SubtitlesOffIcon from '@mui/icons-material/SubtitlesOff';
 import { Loader2 } from 'lucide-react';
 
 const BACKEND_URL = 'http://localhost:8000';
@@ -85,6 +87,7 @@ export default function SFURoom({
   roomName, username, onEndCall, showChat, onToggleChat, newMessages, chatPanel,
   isHost, waitlistCount, onToggleShareCard, onToggleAdmitPanel,
   onSendReaction, onToggleRaiseHand, isHandRaised, reactionOptions = [],
+  captionsEnabled, onToggleCaptions,
 }) {
   const [token,  setToken]  = useState(null);
   const [wsUrl,  setWsUrl]  = useState(null);
@@ -196,6 +199,15 @@ export default function SFURoom({
               <ChatIcon />
             </IconButton>
           </Badge>
+
+          {/* Captions */}
+          <IconButton
+            onClick={onToggleCaptions}
+            title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'}
+            style={{ color: captionsEnabled ? '#a5b4fc' : 'white' }}
+          >
+            {captionsEnabled ? <SubtitlesIcon /> : <SubtitlesOffIcon />}
+          </IconButton>
 
           {/* Reactions */}
           <div style={{ position: 'relative' }}>

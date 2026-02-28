@@ -13,6 +13,8 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
 import PanToolIcon from '@mui/icons-material/PanTool';
 import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
+import SubtitlesIcon from '@mui/icons-material/Subtitles';
+import SubtitlesOffIcon from '@mui/icons-material/SubtitlesOff';
 import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
 import { toast } from "sonner";
@@ -89,10 +91,17 @@ export default function VideoMeetComponent() {
   const [reactions, setReactions] = useState([]);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [raisedHands, setRaisedHands] = useState({});
+  const [captionsEnabled, setCaptionsEnabled] = useState(false);
+  const [captionLines, setCaptionLines] = useState([]);
+  const [liveCaption, setLiveCaption] = useState(null);
   const videoEnabledRef = useRef(true);
   const audioEnabledRef = useRef(true);
   const reactionTimersRef = useRef([]);
   const isHostRef = useRef(false);
+  const recognitionRef = useRef(null);
+  const recognitionActiveRef = useRef(false);
+  const captioningRef = useRef(false);
+  const captionIdsRef = useRef(new Set());
 
   // ── Waiting room state ──
   // phase: 'prejoin' | 'connecting' | 'waiting' | 'rejected' | 'in-meeting'
@@ -130,9 +139,24 @@ export default function VideoMeetComponent() {
   }, [isHost]);
 
   useEffect(() => {
+    captioningRef.current = captionsEnabled;
+  }, [captionsEnabled]);
+
+  useEffect(() => {
     return () => {
       reactionTimersRef.current.forEach((t) => clearTimeout(t));
       reactionTimersRef.current = [];
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // ignore
+      }
+      recognitionActiveRef.current = false;
     };
   }, []);
 
@@ -441,6 +465,13 @@ export default function VideoMeetComponent() {
   const endCall = useCallback(() => {
     // Clear session phase so next visit shows PreJoinCard fresh
     sessionStorage.removeItem(`convox-phase:${window.location.href}`);
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // ignore
+    }
+    recognitionActiveRef.current = false;
+    setCaptionsEnabled(false);
     // Stop all tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -483,6 +514,115 @@ export default function VideoMeetComponent() {
     if (next) toast.success('Hand raised');
     else toast.info('Hand lowered');
   }, [raisedHands]);
+
+  /* -------------------- CAPTIONS -------------------- */
+
+  const addCaptionLine = useCallback((line) => {
+    setCaptionLines((prev) => {
+      const next = [...prev, line];
+      return next.slice(-4);
+    });
+  }, []);
+
+  const emitCaption = useCallback((text) => {
+    if (!text) return;
+    const id = `${socketIdRef.current || 'local'}-${Date.now()}-${Math.random()}`;
+    captionIdsRef.current.add(id);
+    if (captionIdsRef.current.size > 400) captionIdsRef.current.clear();
+    addCaptionLine({
+      id,
+      speaker: usernameRef.current || 'You',
+      text,
+      ts: Date.now(),
+      self: true,
+    });
+    socketRef.current?.emit('caption', { id, text, ts: Date.now() });
+  }, [addCaptionLine]);
+
+  const stopRecognition = useCallback(() => {
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // ignore
+    }
+    recognitionActiveRef.current = false;
+  }, []);
+
+  const startRecognition = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error("Live captions aren't supported in this browser.");
+      setCaptionsEnabled(false);
+      return;
+    }
+    if (recognitionActiveRef.current) return;
+
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-IN';
+    recognitionRef.current = rec;
+
+    rec.onresult = (event) => {
+      let interim = '';
+      let finalText = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        if (res.isFinal) finalText += res[0].transcript;
+        else interim += res[0].transcript;
+      }
+
+      if (interim) {
+        setLiveCaption({ speaker: usernameRef.current || 'You', text: interim });
+      }
+
+      const cleanFinal = finalText.trim();
+      if (cleanFinal) {
+        setLiveCaption(null);
+        emitCaption(cleanFinal);
+      }
+    };
+
+    rec.onerror = (err) => {
+      if (err?.error === 'not-allowed' || err?.error === 'service-not-allowed') {
+        toast.error('Mic permission is required for captions.');
+        setCaptionsEnabled(false);
+      }
+      recognitionActiveRef.current = false;
+    };
+
+    rec.onend = () => {
+      recognitionActiveRef.current = false;
+      if (captioningRef.current && audioEnabledRef.current) {
+        setTimeout(() => {
+          if (captioningRef.current && audioEnabledRef.current) {
+            startRecognition();
+          }
+        }, 400);
+      }
+    };
+
+    try {
+      rec.start();
+      recognitionActiveRef.current = true;
+    } catch {
+      recognitionActiveRef.current = false;
+    }
+  }, [emitCaption]);
+
+  useEffect(() => {
+    if (!captionsEnabled) {
+      stopRecognition();
+      setLiveCaption(null);
+      return;
+    }
+    if (!audioEnabledRef.current) {
+      toast.info('Unmute to generate captions.');
+      stopRecognition();
+      return;
+    }
+    startRecognition();
+  }, [captionsEnabled, audioEnabled, startRecognition, stopRecognition]);
 
   /* -------------------- CHAT -------------------- */
 
@@ -671,6 +811,20 @@ export default function VideoMeetComponent() {
         if (raised && isHostRef.current && socketId !== socketIdRef.current) {
           toast.info(`${raisedBy || 'Someone'} raised a hand`);
         }
+      });
+
+      socket.on('caption', ({ id, text, speaker }) => {
+        if (!text || !id) return;
+        if (captionIdsRef.current.has(id)) return;
+        captionIdsRef.current.add(id);
+        if (captionIdsRef.current.size > 400) captionIdsRef.current.clear();
+        addCaptionLine({
+          id,
+          speaker: speaker || 'Someone',
+          text,
+          ts: Date.now(),
+          self: false,
+        });
       });
 
       socket.on('host-force-mute', () => {
@@ -988,6 +1142,24 @@ export default function VideoMeetComponent() {
         ))}
       </div>
 
+      {/* ── Captions overlay ── */}
+      {captionsEnabled && (captionLines.length > 0 || liveCaption) && (
+        <div className={styles.captionOverlay}>
+          {captionLines.map((line) => (
+            <div key={line.id} className={styles.captionLine}>
+              <span className={styles.captionSpeaker}>{line.speaker}:</span>
+              <span>{line.text}</span>
+            </div>
+          ))}
+          {liveCaption && (
+            <div className={`${styles.captionLine} ${styles.captionInterim}`}>
+              <span className={styles.captionSpeaker}>{liveCaption.speaker}:</span>
+              <span>{liveCaption.text}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── SFU mode — LiveKit handles everything ── */}
       {mode === 'sfu' && !upgrading ? (
         <SFURoom
@@ -1005,6 +1177,8 @@ export default function VideoMeetComponent() {
           onToggleRaiseHand={toggleRaiseHand}
           isHandRaised={isHandRaised}
           reactionOptions={REACTION_OPTIONS}
+          captionsEnabled={captionsEnabled}
+          onToggleCaptions={() => setCaptionsEnabled(p => !p)}
           chatPanel={
             <ChatPanel
               messages={messages}
@@ -1213,6 +1387,13 @@ export default function VideoMeetComponent() {
                   <ChatIcon />
                 </IconButton>
               </Badge>
+              <IconButton
+                onClick={() => setCaptionsEnabled(p => !p)}
+                title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'}
+                style={{ color: captionsEnabled ? '#a5b4fc' : 'white' }}
+              >
+                {captionsEnabled ? <SubtitlesIcon /> : <SubtitlesOffIcon />}
+              </IconButton>
               <div style={{ position: 'relative' }}>
                 <IconButton
                   onClick={() => setShowReactionPicker(p => !p)}

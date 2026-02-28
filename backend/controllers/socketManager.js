@@ -459,6 +459,21 @@ export const connectToSocket = (server) => {
             }));
         });
 
+        /* ── Live captions (from Web Speech API on each client) ── */
+        socket.on("caption", async ({ id, text, ts }) => {
+            const roomKey = socket.data.roomKey;
+            if (!roomKey || !text) return;
+            const username = socketUsernames.get(socket.id) || socket.data.username || `User ${socket.id.slice(-4)}`;
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("caption", {
+                id,
+                text,
+                ts: ts || Date.now(),
+                speaker: username,
+                socketId: socket.id,
+            }));
+        });
+
         /* ── Screen share signalling ── */
         socket.on("screen-share-toggled", async ({ sharing }) => {
             await broadcastToRoomExcludeSelf("screen-share-toggled", {
