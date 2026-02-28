@@ -336,6 +336,22 @@ export const connectToSocket = (server) => {
                 io.to(socket.id).emit("chat-message", parsed.data, parsed.sender, parsed["socket-id-sender"]);
             }
 
+            // Whiteboard status + latest scene to joining user
+            const whiteboardOpen = await client.get(`whiteboardOpen:${path}`);
+            if (whiteboardOpen) {
+                try {
+                    const parsed = JSON.parse(whiteboardOpen);
+                    io.to(socket.id).emit("whiteboard-open", { presenter: parsed.presenter });
+                } catch { /* ignore */ }
+            }
+            const whiteboardState = await client.get(`whiteboardState:${path}`);
+            if (whiteboardState) {
+                try {
+                    const parsed = JSON.parse(whiteboardState);
+                    io.to(socket.id).emit("whiteboard-sync", { scene: parsed });
+                } catch { /* ignore */ }
+            }
+
             // If this newly joined user is the host, send them the current waitlist
             if (socket.id === currentHost) {
                 await broadcastWaitlist(io, path);
@@ -360,6 +376,24 @@ export const connectToSocket = (server) => {
 
             const users = await client.sMembers(roomKey);
             users.forEach(uid => io.to(uid).emit("chat-message", data, sender, socket.id));
+        });
+
+        /* ── File sharing (public) ── */
+        socket.on("file-share", async ({ file }) => {
+            const roomKey  = socket.data.roomKey;
+            if (!roomKey || !file?.data) return;
+            const sender = socketUsernames.get(socket.id) || socket.data.username || `User ${socket.id.slice(-4)}`;
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("file-share", {
+                sender,
+                socketId: socket.id,
+                file: {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    data: file.data,
+                },
+            }));
         });
 
         /* ── Media state updates (for host UI) ── */
@@ -474,6 +508,53 @@ export const connectToSocket = (server) => {
             }));
         });
 
+        /* ── Whiteboard (Excalidraw, host-controlled) ── */
+        socket.on("whiteboard-open", async ({ presenter }) => {
+            if (!await ensureHost()) return;
+            const roomKey  = socket.data.roomKey;
+            const roomPath = socket.data.roomPath;
+            if (!roomKey || !roomPath) return;
+            const payload = { presenter: presenter || socketUsernames.get(socket.id) || 'Host' };
+            await client.set(`whiteboardOpen:${roomPath}`, JSON.stringify(payload));
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("whiteboard-open", payload));
+        });
+
+        socket.on("whiteboard-close", async () => {
+            if (!await ensureHost()) return;
+            const roomKey  = socket.data.roomKey;
+            const roomPath = socket.data.roomPath;
+            if (!roomKey || !roomPath) return;
+            await client.del(`whiteboardOpen:${roomPath}`);
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("whiteboard-close"));
+        });
+
+        socket.on("whiteboard-state", async ({ scene }) => {
+            if (!await ensureHost()) return;
+            const roomKey  = socket.data.roomKey;
+            const roomPath = socket.data.roomPath;
+            if (!roomKey || !roomPath || !scene) return;
+            await client.set(`whiteboardState:${roomPath}`, JSON.stringify(scene));
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("whiteboard-state", {
+                scene,
+                socketId: socket.id,
+            }));
+        });
+
+        socket.on("whiteboard-request-sync", async () => {
+            const roomPath = socket.data.roomPath;
+            if (!roomPath) return;
+            const state = await client.get(`whiteboardState:${roomPath}`);
+            if (state) {
+                try {
+                    const parsed = JSON.parse(state);
+                    io.to(socket.id).emit("whiteboard-sync", { scene: parsed });
+                } catch { /* ignore */ }
+            }
+        });
+
         /* ── Screen share signalling ── */
         socket.on("screen-share-toggled", async ({ sharing }) => {
             await broadcastToRoomExcludeSelf("screen-share-toggled", {
@@ -563,6 +644,8 @@ export const connectToSocket = (server) => {
                 // Empty room — clean up all Redis keys
                 await client.del(roomKey);
                 await client.del(`messages:${roomPath}`);
+                await client.del(`whiteboardOpen:${roomPath}`);
+                await client.del(`whiteboardState:${roomPath}`);
                 await client.del(hostKey);
                 await client.del(hostNameKey);
                 await client.del(`mainHost:${roomPath}`);

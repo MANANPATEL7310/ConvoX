@@ -16,6 +16,7 @@ import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import SubtitlesIcon from '@mui/icons-material/Subtitles';
 import SubtitlesOffIcon from '@mui/icons-material/SubtitlesOff';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import BrushIcon from '@mui/icons-material/Brush';
 import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import ShareMeetingCard from '../components/ShareMeetingCard';
 import PreJoinCard from '../components/PreJoinCard';
 import WaitingRoomScreen from '../components/WaitingRoomScreen';
 import HostControlPanel from '../components/HostControlPanel';
+import WhiteboardOverlay from '../components/WhiteboardOverlay';
 
 const SERVER_URL = "http://localhost:8000";
 
@@ -98,6 +100,8 @@ export default function VideoMeetComponent() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [pinnedId, setPinnedId] = useState(null); // socketId | 'local'
+  const [whiteboardVisible, setWhiteboardVisible] = useState(false);
+  const [whiteboardPresenter, setWhiteboardPresenter] = useState('');
   const videoEnabledRef = useRef(true);
   const audioEnabledRef = useRef(true);
   const reactionTimersRef = useRef([]);
@@ -196,6 +200,19 @@ export default function VideoMeetComponent() {
   const togglePin = useCallback((id) => {
     setPinnedId((prev) => (prev === id ? null : id));
   }, []);
+
+  const toggleWhiteboard = useCallback(() => {
+    if (!isHost) return;
+    if (whiteboardVisible) {
+      socketRef.current?.emit('whiteboard-close');
+      setWhiteboardVisible(false);
+      setWhiteboardPresenter('');
+    } else {
+      socketRef.current?.emit('whiteboard-open', { presenter: usernameRef.current || 'Host' });
+      setWhiteboardVisible(true);
+      setWhiteboardPresenter(usernameRef.current || 'Host');
+    }
+  }, [isHost, whiteboardVisible]);
 
   // Keep usernameRef always current so socket callbacks never have a stale value
   useEffect(() => { usernameRef.current = username; }, [username]);
@@ -766,7 +783,13 @@ export default function VideoMeetComponent() {
 
   const addMessage = useCallback((data, sender, socketIdSender) => {
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMessages((prev) => [...prev, { sender, data, time }]);
+    setMessages((prev) => [...prev, {
+      type: 'text',
+      sender,
+      data,
+      time,
+      _idx: Date.now() + Math.random(),
+    }]);
     if (socketIdSender !== socketIdRef.current) {
       setNewMessages((prev) => prev + 1);
     }
@@ -949,6 +972,17 @@ export default function VideoMeetComponent() {
         if (raised && isHostRef.current && socketId !== socketIdRef.current) {
           toast.info(`${raisedBy || 'Someone'} raised a hand`);
         }
+      });
+
+      socket.on('whiteboard-open', ({ presenter }) => {
+        if (!presenter && isHostRef.current) return;
+        setWhiteboardPresenter(presenter || 'Host');
+        setWhiteboardVisible(true);
+      });
+
+      socket.on('whiteboard-close', () => {
+        setWhiteboardVisible(false);
+        setWhiteboardPresenter('');
       });
 
       socket.on('caption', ({ id, text, speaker }) => {
@@ -1667,6 +1701,15 @@ export default function VideoMeetComponent() {
                   <FiberManualRecordIcon />
                 </IconButton>
               )}
+              {isHost && (
+                <IconButton
+                  onClick={toggleWhiteboard}
+                  title={whiteboardVisible ? 'Close whiteboard' : 'Open whiteboard'}
+                  style={{ color: whiteboardVisible ? '#22c55e' : 'white' }}
+                >
+                  <BrushIcon />
+                </IconButton>
+              )}
               <IconButton
                 onClick={() => setCaptionsEnabled(p => !p)}
                 title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'}
@@ -1820,6 +1863,15 @@ export default function VideoMeetComponent() {
           onClose={() => setShowHostPanel(false)}
         />
       )}
+
+      {/* ── Whiteboard Overlay (host-controlled) ── */}
+      <WhiteboardOverlay
+        socketRef={socketRef}
+        visible={whiteboardVisible}
+        isHost={isHost}
+        presenter={whiteboardPresenter}
+        onClose={toggleWhiteboard}
+      />
     </div>
   );
 }

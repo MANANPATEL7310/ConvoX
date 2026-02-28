@@ -17,8 +17,9 @@
 import React, {
   useState, useEffect, useRef, useCallback, memo
 } from 'react';
-import { Send, X, MessageCircle, Smile, ChevronDown, Lock } from 'lucide-react';
+import { Send, X, MessageCircle, Smile, ChevronDown, Lock, Paperclip } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 /* ─── Emoji data (lightweight — no external lib) ─── */
 const EMOJI_CATEGORIES = {
@@ -61,6 +62,8 @@ function TypingDots() {
 const Bubble = memo(({ msg, isMine }) => {
   const color = avatarColor(msg.sender);
   const isDM = !!msg.toName || !!msg.fromName;
+  const isFile = msg.type === 'file' && msg.file;
+  const fileIsImage = isFile && msg.file.type?.startsWith('image/');
 
   return (
     <motion.div
@@ -100,7 +103,35 @@ const Bubble = memo(({ msg, isMine }) => {
               ? 'bg-gray-800 text-purple-200 rounded-bl-sm ring-1 ring-purple-500/30'
               : 'bg-gray-700/80 text-gray-100 rounded-bl-sm'
         }`}>
-          {msg.data}
+          {isFile ? (
+            <div className="flex flex-col gap-2">
+              {fileIsImage && (
+                <img
+                  src={msg.file.data}
+                  alt={msg.file.name}
+                  className="max-w-[220px] rounded-lg border border-white/10"
+                />
+              )}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-black/20 flex items-center justify-center text-xs">📎</div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold">{msg.file.name}</span>
+                  <span className="text-[10px] text-white/70">
+                    {Math.round((msg.file.size || 0) / 1024)} KB
+                  </span>
+                </div>
+              </div>
+              <a
+                href={msg.file.data}
+                download={msg.file.name}
+                className="text-[11px] font-semibold text-white/90 underline underline-offset-2"
+              >
+                Download
+              </a>
+            </div>
+          ) : (
+            msg.data
+          )}
         </div>
 
         {/* Time */}
@@ -123,19 +154,23 @@ const ChatPanel = memo(({
   const [emojiTab, setEmojiTab]         = useState('😀');
   const [typingUsers, setTypingUsers]   = useState([]);
   const [dmMessages, setDmMessages]     = useState([]); // private msgs keyed here
+  const [fileMessages, setFileMessages] = useState([]);
 
   const bottomRef    = useRef(null);
   const typingTimer  = useRef(null);
   const isTypingRef  = useRef(false);
   const textareaRef  = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const MAX_FILE_SIZE_MB = 5;
 
   /* All displayed messages = public + DMs merged and sorted by arrival */
-  const allMessages = [...messages, ...dmMessages].sort((a, b) => (a._idx ?? 0) - (b._idx ?? 0));
+  const allMessages = [...messages, ...dmMessages, ...fileMessages].sort((a, b) => (a._idx ?? 0) - (b._idx ?? 0));
 
   /* Auto-scroll */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, dmMessages, typingUsers]);
+  }, [messages, dmMessages, fileMessages, typingUsers]);
 
   /* Socket listeners for typing + private msgs */
   useEffect(() => {
@@ -148,17 +183,31 @@ const ChatPanel = memo(({
       const toName = toSocketId ? (userNames[toSocketId] || 'Someone') : undefined;
       const fromName = !mine ? sender : undefined;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setDmMessages(prev => [...prev, { data, sender, time, toName, fromName, _idx: Date.now() + Math.random() }]);
+      setDmMessages(prev => [...prev, { type: 'text', data, sender, time, toName, fromName, _idx: Date.now() + Math.random() }]);
       if (!mine) onNewMessage?.();
+    };
+    const handleFileShare = ({ file, sender, socketId }) => {
+      if (!file?.data) return;
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setFileMessages(prev => [...prev, {
+        type: 'file',
+        file,
+        sender: sender || 'Someone',
+        time,
+        _idx: Date.now() + Math.random(),
+      }]);
+      if (socketId !== socketIdRef?.current) onNewMessage?.();
     };
 
     socket.on('user-typing',       handleTyping);
     socket.on('user-stop-typing',  handleStopTyping);
     socket.on('private-message',   handlePrivate);
+    socket.on('file-share',        handleFileShare);
     return () => {
       socket.off('user-typing',      handleTyping);
       socket.off('user-stop-typing', handleStopTyping);
       socket.off('private-message',  handlePrivate);
+      socket.off('file-share',       handleFileShare);
     };
   }, [socketRef, userNames, onNewMessage]);
 
@@ -195,6 +244,37 @@ const ChatPanel = memo(({
     socketRef.current.emit('stop-typing', username);
     textareaRef.current?.focus();
   }, [draft, socketRef, username, sendTo]);
+
+  const handleFilePick = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (sendTo !== 'everyone') {
+      toast.error('File sharing is only for everyone right now.');
+      e.target.value = '';
+      return;
+    }
+    const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error(`Max file size is ${MAX_FILE_SIZE_MB}MB.`);
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = reader.result;
+      if (!data || !socketRef.current) return;
+      socketRef.current.emit('file-share', {
+        file: {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data,
+        },
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [sendTo, socketRef, MAX_FILE_SIZE_MB]);
 
   const handleKey = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -241,7 +321,9 @@ const ChatPanel = memo(({
           </div>
           <div>
             <h3 className="font-semibold text-white text-sm leading-none">Chat</h3>
-            <p className="text-[10px] text-gray-500 mt-0.5">{messages.length + dmMessages.length} messages</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">
+              {messages.length + dmMessages.length + fileMessages.length} items
+            </p>
           </div>
         </div>
         <button onClick={onClose} className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-gray-700 transition-colors">
@@ -462,6 +544,27 @@ const ChatPanel = memo(({
           >
             😊
           </button>
+
+          {/* File upload */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="Share file"
+            style={{
+              flexShrink: 0, width: 36, height: 36, borderRadius: 10,
+              background: '#1f2937',
+              border: '1px solid #374151',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <Paperclip className="w-4 h-4 text-gray-300" />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={handleFilePick}
+          />
 
           {/* Textarea */}
           <textarea
