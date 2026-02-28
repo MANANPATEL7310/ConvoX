@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   LiveKitRoom,
   GridLayout,
@@ -67,7 +67,7 @@ function SpeakingParticipantTile({ participant }) {
 }
 
 /* ── Custom video grid that fills the same layout as the P2P view ── */
-function VideoGrid() {
+function VideoGrid({ pinnedSid, onTogglePin }) {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera,      withPlaceholder: true },
@@ -76,9 +76,76 @@ function VideoGrid() {
     { onlySubscribed: false }
   );
 
+  const cameraTracks = tracks.filter(t => t.source === Track.Source.Camera);
+  const pinnedTrack = pinnedSid ? cameraTracks.find(t => t.participant.sid === pinnedSid) : null;
+  const lastClickRef = useRef({ time: 0, sid: null });
+
+  useEffect(() => {
+    if (pinnedSid && !pinnedTrack) onTogglePin?.(null);
+  }, [pinnedSid, pinnedTrack, onTogglePin]);
+
+  if (pinnedTrack) {
+    return (
+      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', gap: 6, padding: 6, background: '#0a0a0f' }}>
+        <div style={{ flex: 1, position: 'relative', borderRadius: 8, overflow: 'hidden', background: '#000' }}>
+          <div
+            onDoubleClick={() => onTogglePin?.(null)}
+            style={{ width: '100%', height: '100%' }}
+            title="Double-click to unpin"
+          >
+            <ParticipantTile trackRef={pinnedTrack} style={{ width: '100%', height: '100%' }} />
+          </div>
+          <div style={{
+            position: 'absolute', top: 12, left: 12,
+            padding: '4px 10px', borderRadius: 999,
+            background: 'rgba(99,102,241,0.85)', color: 'white',
+            fontSize: 12, fontWeight: 700,
+          }}>
+            📌 Pinned
+          </div>
+          <button
+            onClick={() => onTogglePin?.(null)}
+            style={{
+              position: 'absolute', top: 12, right: 12,
+              padding: '6px 12px', borderRadius: 999,
+              background: 'rgba(15,23,42,0.75)', color: '#e5e7eb',
+              border: '1px solid rgba(255,255,255,0.15)', fontSize: 12, fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Unpin
+          </button>
+        </div>
+        <div style={{ width: 200, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', paddingBottom: 80 }}>
+          {cameraTracks.filter(t => t.participant.sid !== pinnedSid).map((track) => (
+            <div
+              key={track.publication?.trackSid || track.participant.sid}
+              style={{ position: 'relative', borderRadius: 6, overflow: 'hidden', background: '#111827', aspectRatio: '16 / 9' }}
+              onDoubleClick={() => onTogglePin?.(track.participant.sid)}
+              title="Double-click to pin"
+            >
+              <ParticipantTile trackRef={track} style={{ width: '100%', height: '100%' }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const handleParticipantClick = (evt) => {
+    if (!evt?.participant?.sid) return;
+    const now = Date.now();
+    if (lastClickRef.current.sid === evt.participant.sid && (now - lastClickRef.current.time) < 350) {
+      onTogglePin?.(evt.participant.sid);
+      lastClickRef.current = { time: 0, sid: null };
+      return;
+    }
+    lastClickRef.current = { time: now, sid: evt.participant.sid };
+  };
+
   return (
     <GridLayout tracks={tracks} style={{ height: 'calc(100vh - 64px)' }}>
-      <ParticipantTile />
+      <ParticipantTile onParticipantClick={handleParticipantClick} />
     </GridLayout>
   );
 }
@@ -95,6 +162,7 @@ export default function SFURoom({
   const [loading, setLoading] = useState(true);
   const [error,  setError]  = useState(null);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [pinnedSid, setPinnedSid] = useState(null);
 
   /* Fetch LiveKit join token from backend */
   useEffect(() => {
@@ -173,7 +241,7 @@ export default function SFURoom({
 
         {/* Video grid */}
         <div style={{ flex: 1, overflow: 'hidden' }}>
-          <VideoGrid />
+          <VideoGrid pinnedSid={pinnedSid} onTogglePin={setPinnedSid} />
         </div>
 
         {/* Bottom control bar — LiveKit built-in + custom End/Chat/Host settings */}

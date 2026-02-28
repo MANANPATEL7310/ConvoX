@@ -97,6 +97,7 @@ export default function VideoMeetComponent() {
   const [liveCaption, setLiveCaption] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [pinnedId, setPinnedId] = useState(null); // socketId | 'local'
   const videoEnabledRef = useRef(true);
   const audioEnabledRef = useRef(true);
   const reactionTimersRef = useRef([]);
@@ -191,6 +192,10 @@ export default function VideoMeetComponent() {
     const secs = totalSeconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const togglePin = useCallback((id) => {
+    setPinnedId((prev) => (prev === id ? null : id));
+  }, []);
 
   // Keep usernameRef always current so socket callbacks never have a stale value
   useEffect(() => { usernameRef.current = username; }, [username]);
@@ -1102,6 +1107,7 @@ export default function VideoMeetComponent() {
         setUserNames(prev => { const n = { ...prev }; delete n[socketId]; return n; });
         setMediaStates(prev => { const n = { ...prev }; delete n[socketId]; return n; });
         setRaisedHands(prev => { const n = { ...prev }; delete n[socketId]; return n; });
+        setPinnedId(prev => (prev === socketId ? null : prev));
       });
 
       socket.on('chat-message', (data, sender, sid) => addMessageRef.current(data, sender, sid));
@@ -1443,6 +1449,95 @@ export default function VideoMeetComponent() {
                   })}
                 </div>
               </div>
+            ) : pinnedId ? (
+              /* ══════════════════════════════════════════
+                 PINNED LAYOUT — user pinned to main stage
+              ══════════════════════════════════════════ */
+              <div className={styles.presenterLayout}>
+                <div className={styles.presenterMain}>
+                  {pinnedId === 'local' ? (
+                    <video
+                      autoPlay
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover"
+                      style={{ transform: 'scaleX(-1)' }}
+                      ref={(el) => {
+                        if (el && localStreamRef.current) el.srcObject = localStreamRef.current;
+                      }}
+                    />
+                  ) : (
+                    (() => {
+                      const pinnedStream = remoteStreams.find(r => r.id === pinnedId);
+                      return pinnedStream ? (
+                        <video
+                          autoPlay
+                          playsInline
+                          muted={false}
+                          className="w-full h-full object-cover"
+                          ref={(el) => { if (el && pinnedStream.stream) el.srcObject = pinnedStream.stream; }}
+                        />
+                      ) : (
+                        <div className={styles.sharingBanner}>
+                          <p className={styles.sharingBannerTitle}>Pinned user left</p>
+                          <button className={styles.stopSharingBtn} onClick={() => setPinnedId(null)}>
+                            Back to grid
+                          </button>
+                        </div>
+                      );
+                    })()
+                  )}
+
+                  <div className={styles.pinLabel}>
+                    📌 Pinned: {pinnedId === 'local' ? 'You' : (userNames[pinnedId] || 'Participant')}
+                  </div>
+                  <button className={styles.unpinBtn} onClick={() => setPinnedId(null)}>
+                    Unpin
+                  </button>
+                </div>
+
+                <div className={styles.presenterSidebar}>
+                  {/* Local thumbnail */}
+                  {pinnedId !== 'local' && (
+                    <div className={styles.presenterThumb} onDoubleClick={() => togglePin('local')}>
+                      <video
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                        style={{ transform: 'scaleX(-1)' }}
+                        ref={(el) => {
+                          if (el && localStreamRef.current) el.srcObject = localStreamRef.current;
+                        }}
+                      />
+                      <div className={styles.thumbLabel}>You</div>
+                    </div>
+                  )}
+
+                  {/* Remote thumbnails */}
+                  {remoteStreams.filter(rs => rs.id !== pinnedId).map(rs => {
+                    const isSpeaking = activeSpeakers.has(rs.id);
+                    return (
+                      <div
+                        key={rs.id}
+                        className={styles.presenterThumb}
+                        style={{ outline: isSpeaking ? '2px solid #22c55e' : 'none' }}
+                        onDoubleClick={() => togglePin(rs.id)}
+                      >
+                        <video
+                          autoPlay
+                          playsInline
+                          muted={false}
+                          className="w-full h-full object-cover"
+                          ref={el => { if (el && rs.stream) el.srcObject = rs.stream; }}
+                        />
+                        {isSpeaking && <div className={styles.speakingRing} />}
+                        <div className={styles.thumbLabel}>{userNames[rs.id] || `User ${rs.id.slice(-4)}`}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             ) : (
               /* ══════════════════════════════════════════
                  NORMAL GRID — nobody is sharing screen
@@ -1458,12 +1553,20 @@ export default function VideoMeetComponent() {
                     remoteStreams.map((remoteStream) => {
                       const isSpeaking = activeSpeakers.has(remoteStream.id);
                       return (
-                        <div key={remoteStream.id} className="relative group w-full h-full">
+                        <div
+                          key={remoteStream.id}
+                          className="relative group w-full h-full"
+                          onDoubleClick={() => togglePin(remoteStream.id)}
+                          title="Double-click to pin"
+                        >
                           <video
                             autoPlay playsInline muted={false}
                             className="w-full h-full object-cover"
                             ref={el => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
                           />
+                          {pinnedId === remoteStream.id && (
+                            <div className={styles.pinBadge}>📌</div>
+                          )}
                           {raisedHands[remoteStream.id] && (
                             <div
                               className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold"
@@ -1493,7 +1596,11 @@ export default function VideoMeetComponent() {
                 </div>
 
                 {/* Local Video corner (shown only in grid mode) */}
-                <div className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20">
+                <div
+                  className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20"
+                  onDoubleClick={() => togglePin('local')}
+                  title="Double-click to pin"
+                >
                   <video 
                     ref={el => {
                       localVideoRef.current = el;
@@ -1503,6 +1610,9 @@ export default function VideoMeetComponent() {
                     className="w-full h-full object-cover bg-black" 
                     style={{ transform: 'scaleX(-1)' }}
                   />
+                  {pinnedId === 'local' && (
+                    <div className={styles.pinBadge}>📌</div>
+                  )}
                   {raisedHands[socketIdRef.current] && (
                     <div
                       className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold"

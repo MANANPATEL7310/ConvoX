@@ -151,6 +151,61 @@
   gap: 4px;
 }
 
+/* ── Pinned label + badge ── */
+.pinLabel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(99, 102, 241, 0.85);
+  padding: 4px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.pinBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(99, 102, 241, 0.9);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  z-index: 10;
+}
+
+.unpinBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.unpinBtn:hover {
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.unpinBtn:active {
+  transform: scale(0.97);
+}
+
 /* ── Responsive: on narrow screens sidebar goes below main ── */
 @media (max-width: 768px) {
   .presenterLayout {
