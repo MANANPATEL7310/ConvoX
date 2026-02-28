@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -15,6 +15,9 @@ import PageWrapper from '../components/PageWrapper';
 import ShareMeetingCard from '../components/ShareMeetingCard';
 import ScheduleMeetingCard from '../components/ScheduleMeetingCard';
 import { toast } from 'sonner';
+import axios from 'axios';
+
+const server_url = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
 
 /* ═══════════════════════════════════════════════════════════
    QUICK ACTIONS — each becomes a real interactive component
@@ -108,6 +111,9 @@ export default function HomeComponent() {
   // Share card state: { code, url } when a meeting is generated
   const [shareState, setShareState] = useState(null);
   const [scheduleState, setScheduleState] = useState(null);
+  const [scheduledMeetings, setScheduledMeetings] = useState([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [copiedScheduleId, setCopiedScheduleId] = useState(null);
   const { user, logout, addToUserHistory } = useAuth();
   const { dark } = useTheme();
 
@@ -130,6 +136,61 @@ export default function HomeComponent() {
   };
 
   const APP_URL = window.location.origin;
+
+  const formatIST = useCallback((dateStr) => {
+    try {
+      return new Intl.DateTimeFormat('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: 'Asia/Kolkata',
+      }).format(new Date(dateStr));
+    } catch {
+      const d = new Date(dateStr);
+      return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const fetchScheduled = async () => {
+      setScheduleLoading(true);
+      try {
+        const { data } = await axios.get(`${server_url}/api/v1/schedule`, { withCredentials: true });
+        if (active) setScheduledMeetings(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Failed to load schedules:', err);
+      } finally {
+        if (active) setScheduleLoading(false);
+      }
+    };
+    fetchScheduled();
+    return () => { active = false; };
+  }, [user]);
+
+  const upcomingMeetings = useMemo(() => {
+    const list = scheduledMeetings.filter(m => m.status === 'scheduled');
+    return list.sort((a, b) => new Date(a.scheduledFor) - new Date(b.scheduledFor));
+  }, [scheduledMeetings]);
+
+  const handleScheduled = useCallback((meeting) => {
+    if (!meeting?._id) return;
+    setScheduledMeetings(prev => {
+      const next = [meeting, ...prev.filter(m => m._id !== meeting._id)];
+      return next.sort((a, b) => new Date(a.scheduledFor) - new Date(b.scheduledFor));
+    });
+  }, []);
+
+  const handleCopyScheduleLink = useCallback(async (meeting) => {
+    try {
+      await navigator.clipboard.writeText(meeting.meetingUrl);
+      setCopiedScheduleId(meeting._id);
+      toast.success('Meeting link copied');
+      setTimeout(() => setCopiedScheduleId(null), 2500);
+    } catch {
+      toast.error('Failed to copy link');
+    }
+  }, []);
 
   const handleQuickAction = useCallback(async (id) => {
     switch (id) {
@@ -337,6 +398,79 @@ export default function HomeComponent() {
                 ))}
               </div>
             </motion.div>
+
+            {/* ── Scheduled Meetings (Host only) ── */}
+            {user && (
+              <motion.div variants={fadeUp} className="max-w-xl">
+                <div className="flex items-center gap-2 mb-4">
+                  <Clock className={`w-4 h-4 ${dark ? 'text-orange-400' : 'text-orange-500'}`} />
+                  <p className={`text-xs uppercase tracking-[0.2em] font-semibold ${
+                    dark ? 'text-gray-500' : 'text-gray-400'
+                  }`}>Scheduled Meetings</p>
+                </div>
+
+                <div className={`rounded-2xl border p-4 ${dark ? 'bg-white/[0.03] border-white/[0.06]' : 'bg-white border-gray-200/60'}`}>
+                  {scheduleLoading ? (
+                    <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Loading schedules…</p>
+                  ) : upcomingMeetings.length === 0 ? (
+                    <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      No upcoming scheduled meetings yet.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {upcomingMeetings.map(meeting => (
+                        <div key={meeting._id} className={`rounded-xl border p-4 ${dark ? 'border-white/[0.06] bg-gray-900/40' : 'border-gray-200/60 bg-gray-50/70'}`}>
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className={`text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>
+                                {meeting.title || 'Scheduled Meeting'}
+                              </p>
+                              <p className={`text-xs mt-1 ${dark ? 'text-gray-500' : 'text-gray-500'}`}>
+                                {formatIST(meeting.scheduledFor)} (IST)
+                              </p>
+                              <p className={`text-[11px] mt-1 ${dark ? 'text-gray-600' : 'text-gray-400'}`}>
+                                Code: {meeting.meetingCode}
+                              </p>
+                            </div>
+                            <span className={`text-[10px] uppercase tracking-widest font-semibold px-2 py-1 rounded-full border ${
+                              dark ? 'border-orange-500/30 text-orange-300 bg-orange-500/10' : 'border-orange-200 text-orange-600 bg-orange-50'
+                            }`}>
+                              Scheduled
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <Button
+                              onClick={() => handleCopyScheduleLink(meeting)}
+                              className={`h-9 px-3 rounded-lg text-xs font-semibold ${
+                                dark
+                                  ? 'bg-white/10 text-white hover:bg-white/20'
+                                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+                              }`}
+                            >
+                              {copiedScheduleId === meeting._id ? (
+                                <><Check className="w-3.5 h-3.5 mr-1" /> Copied</>
+                              ) : (
+                                <><Copy className="w-3.5 h-3.5 mr-1" /> Copy Link</>
+                              )}
+                            </Button>
+                            <Button
+                              onClick={async () => {
+                                await addToUserHistory(meeting.meetingCode);
+                                navigate(`/${meeting.meetingCode}`);
+                              }}
+                              className="h-9 px-4 rounded-lg text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white"
+                            >
+                              Join Meeting
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* ─── RIGHT COLUMN (2/5) ─── */}
@@ -498,7 +632,7 @@ export default function HomeComponent() {
           meetingCode={scheduleState.code}
           senderName={user?.username || 'Someone'}
           onClose={() => setScheduleState(null)}
-          onScheduled={() => setScheduleState(null)}
+          onScheduled={handleScheduled}
         />
       )}
     </PageWrapper>
