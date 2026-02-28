@@ -1,8 +1,8 @@
 /**
  * ModeIndicator — small badge showing current meeting architecture.
  *
- * Green  "P2P · N users"   → direct peer-to-peer (≤4 people)
- * Indigo "SFU · N users"   → LiveKit selective forwarding (5+ people)
+ * Green  "P2P · N users"   → direct peer-to-peer (≤2 people)
+ * Indigo "SFU · N users"   → LiveKit selective forwarding (3+ people)
  */
 import React from 'react';
 import { motion } from 'framer-motion';

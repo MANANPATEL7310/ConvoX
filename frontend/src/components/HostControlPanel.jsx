@@ -24,11 +24,11 @@ export default function HostControlPanel({
     <AnimatePresence>
       <motion.div
         key="host-panel"
-        initial={{ x: 340, opacity: 0 }}
+        initial={{ x: -340, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        exit={{ x: 340, opacity: 0 }}
+        exit={{ x: -340, opacity: 0 }}
         transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        className={`absolute right-4 top-20 h-[70vh] w-[360px] rounded-2xl border shadow-2xl overflow-hidden z-50 ${
+        className={`absolute left-4 top-20 h-[70vh] w-[360px] rounded-2xl border shadow-2xl overflow-hidden z-50 ${
           dark
             ? 'bg-gray-900/95 border-white/[0.08] shadow-black/60 backdrop-blur-xl'
             : 'bg-white/95 border-gray-200/80 shadow-gray-400/20 backdrop-blur-xl'

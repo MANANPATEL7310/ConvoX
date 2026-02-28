@@ -17,10 +17,11 @@ export function useMeetingMode(socketRef) {
   const [participantCount, setCount]      = useState(1);
   const [upgrading, setUpgrading]         = useState(false);
   const upgradeTimer                      = useRef(null);
+  const attachedSocketRef                 = useRef(null);
 
   useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
+    let cancelled = false;
+    let intervalId;
 
     const handleSetMode = ({ mode: m, participantCount: c }) => {
       setMode(m);
@@ -38,12 +39,44 @@ export function useMeetingMode(socketRef) {
       }, 2000);
     };
 
-    socket.on('set-mode',      handleSetMode);
-    socket.on('upgrade-to-sfu', handleUpgrade);
+    const attachToSocket = (socket) => {
+      if (!socket || attachedSocketRef.current === socket) return;
+
+      if (attachedSocketRef.current) {
+        attachedSocketRef.current.off('set-mode', handleSetMode);
+        attachedSocketRef.current.off('upgrade-to-sfu', handleUpgrade);
+      }
+
+      attachedSocketRef.current = socket;
+      socket.on('set-mode', handleSetMode);
+      socket.on('upgrade-to-sfu', handleUpgrade);
+    };
+
+    const tryAttach = () => {
+      if (cancelled) return;
+      const socket = socketRef.current;
+      if (socket) {
+        attachToSocket(socket);
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+      }
+    };
+
+    tryAttach();
+    if (!socketRef.current) {
+      intervalId = setInterval(tryAttach, 200);
+    }
 
     return () => {
-      socket.off('set-mode',      handleSetMode);
-      socket.off('upgrade-to-sfu', handleUpgrade);
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+      if (attachedSocketRef.current) {
+        attachedSocketRef.current.off('set-mode', handleSetMode);
+        attachedSocketRef.current.off('upgrade-to-sfu', handleUpgrade);
+        attachedSocketRef.current = null;
+      }
       clearTimeout(upgradeTimer.current);
     };
   }, [socketRef]);
