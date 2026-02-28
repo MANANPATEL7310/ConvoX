@@ -15,6 +15,7 @@ import PanToolIcon from '@mui/icons-material/PanTool';
 import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import SubtitlesIcon from '@mui/icons-material/Subtitles';
 import SubtitlesOffIcon from '@mui/icons-material/SubtitlesOff';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
 import { toast } from "sonner";
@@ -94,6 +95,8 @@ export default function VideoMeetComponent() {
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
   const [captionLines, setCaptionLines] = useState([]);
   const [liveCaption, setLiveCaption] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const videoEnabledRef = useRef(true);
   const audioEnabledRef = useRef(true);
   const reactionTimersRef = useRef([]);
@@ -102,6 +105,11 @@ export default function VideoMeetComponent() {
   const recognitionActiveRef = useRef(false);
   const captioningRef = useRef(false);
   const captionIdsRef = useRef(new Set());
+  const recordingRef = useRef(null);
+  const recordingStreamRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+  const recordingStartRef = useRef(null);
 
   // ── Waiting room state ──
   // phase: 'prejoin' | 'connecting' | 'waiting' | 'rejected' | 'in-meeting'
@@ -160,10 +168,29 @@ export default function VideoMeetComponent() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+      try {
+        recordingRef.current?.stop();
+      } catch {
+        // ignore
+      }
+      recordingStreamRef.current?.getTracks().forEach(t => t.stop());
+      recordingStreamRef.current = null;
+    };
+  }, []);
+
   // Use derived state for display username
   const username = user?.username || lobbyUsername;
   const shouldShowLobby = !user?.username && !isConnected;
   const isHandRaised = !!raisedHands[socketIdRef.current];
+  const formatDuration = (totalSeconds = 0) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // Keep usernameRef always current so socket callbacks never have a stale value
   useEffect(() => { usernameRef.current = username; }, [username]);
@@ -472,6 +499,16 @@ export default function VideoMeetComponent() {
     }
     recognitionActiveRef.current = false;
     setCaptionsEnabled(false);
+    if (recordingRef.current && recordingRef.current.state === 'recording') {
+      recordingRef.current.stop();
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    recordingStreamRef.current?.getTracks().forEach(t => t.stop());
+    recordingStreamRef.current = null;
+    setIsRecording(false);
     // Stop all tracks
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop());
@@ -514,6 +551,102 @@ export default function VideoMeetComponent() {
     if (next) toast.success('Hand raised');
     else toast.info('Hand lowered');
   }, [raisedHands]);
+
+  /* -------------------- RECORDING -------------------- */
+
+  const getRecorderMimeType = () => {
+    const types = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm',
+    ];
+    return types.find(t => window.MediaRecorder?.isTypeSupported?.(t)) || '';
+  };
+
+  const stopRecording = useCallback(() => {
+    if (recordingRef.current && recordingRef.current.state === 'recording') {
+      recordingRef.current.stop();
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    recordingStreamRef.current?.getTracks().forEach(t => t.stop());
+    recordingStreamRef.current = null;
+    recordingStartRef.current = null;
+    setIsRecording(false);
+    setRecordingDuration(0);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    if (!window.MediaRecorder) {
+      toast.error('Recording is not supported in this browser.');
+      return;
+    }
+    try {
+      toast.info('Select the ConvoX tab and enable “Share audio” for best results.');
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30 },
+        audio: true,
+      });
+
+      recordingStreamRef.current = stream;
+      recordedChunksRef.current = [];
+      const mimeType = getRecorderMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      recordingRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const type = mimeType || 'video/webm';
+        const blob = new Blob(recordedChunksRef.current, { type });
+        recordedChunksRef.current = [];
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const ext = type.includes('mp4') ? 'mp4' : 'webm';
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        a.href = url;
+        a.download = `convox-recording-${stamp}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast.success('Recording saved.');
+      };
+
+      recorder.start(1000);
+      setIsRecording(true);
+      recordingStartRef.current = Date.now();
+      setRecordingDuration(0);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        if (recordingStartRef.current) {
+          const diff = Math.floor((Date.now() - recordingStartRef.current) / 1000);
+          setRecordingDuration(diff);
+        }
+      }, 1000);
+
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          stopRecording();
+        };
+      }
+
+      toast.success('Recording started.');
+    } catch (err) {
+      console.error('Recording error:', err);
+      toast.error('Recording failed to start.');
+    }
+  }, [stopRecording]);
+
+  const toggleRecording = useCallback(() => {
+    if (isRecording) stopRecording();
+    else startRecording();
+  }, [isRecording, startRecording, stopRecording]);
 
   /* -------------------- CAPTIONS -------------------- */
 
@@ -1160,6 +1293,32 @@ export default function VideoMeetComponent() {
         </div>
       )}
 
+      {/* ── Recording indicator ── */}
+      {isRecording && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            zIndex: 40,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 12px',
+            borderRadius: 999,
+            background: 'rgba(15,23,42,0.75)',
+            border: '1px solid rgba(239,68,68,0.5)',
+            color: '#fecaca',
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}
+        >
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px rgba(239,68,68,0.8)' }} />
+          REC {formatDuration(recordingDuration)}
+        </div>
+      )}
+
       {/* ── SFU mode — LiveKit handles everything ── */}
       {mode === 'sfu' && !upgrading ? (
         <SFURoom
@@ -1179,6 +1338,8 @@ export default function VideoMeetComponent() {
           reactionOptions={REACTION_OPTIONS}
           captionsEnabled={captionsEnabled}
           onToggleCaptions={() => setCaptionsEnabled(p => !p)}
+          isRecording={isRecording}
+          onToggleRecording={toggleRecording}
           chatPanel={
             <ChatPanel
               messages={messages}
@@ -1387,6 +1548,15 @@ export default function VideoMeetComponent() {
                   <ChatIcon />
                 </IconButton>
               </Badge>
+              {isHost && (
+                <IconButton
+                  onClick={toggleRecording}
+                  title={isRecording ? 'Stop recording' : 'Start recording'}
+                  style={{ color: isRecording ? '#ef4444' : 'white' }}
+                >
+                  <FiberManualRecordIcon />
+                </IconButton>
+              )}
               <IconButton
                 onClick={() => setCaptionsEnabled(p => !p)}
                 title={captionsEnabled ? 'Turn off captions' : 'Turn on captions'}

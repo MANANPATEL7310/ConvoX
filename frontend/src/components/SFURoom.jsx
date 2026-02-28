@@ -21,6 +21,7 @@ import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import SubtitlesIcon from '@mui/icons-material/Subtitles';
 import SubtitlesOffIcon from '@mui/icons-material/SubtitlesOff';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { Loader2 } from 'lucide-react';
 
 const BACKEND_URL = 'http://localhost:8000';
@@ -87,7 +88,7 @@ export default function SFURoom({
   roomName, username, onEndCall, showChat, onToggleChat, newMessages, chatPanel,
   isHost, waitlistCount, onToggleShareCard, onToggleAdmitPanel,
   onSendReaction, onToggleRaiseHand, isHandRaised, reactionOptions = [],
-  captionsEnabled, onToggleCaptions,
+  captionsEnabled, onToggleCaptions, isRecording, onToggleRecording,
 }) {
   const [token,  setToken]  = useState(null);
   const [wsUrl,  setWsUrl]  = useState(null);
@@ -199,6 +200,16 @@ export default function SFURoom({
               <ChatIcon />
             </IconButton>
           </Badge>
+
+          {isHost && (
+            <IconButton
+              onClick={onToggleRecording}
+              title={isRecording ? 'Stop recording' : 'Start recording'}
+              style={{ color: isRecording ? '#ef4444' : 'white' }}
+            >
+              <FiberManualRecordIcon />
+            </IconButton>
+          )}
 
           {/* Captions */}
           <IconButton
