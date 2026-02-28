@@ -30,6 +30,7 @@ import PreJoinCard from '../components/PreJoinCard';
 import WaitingRoomScreen from '../components/WaitingRoomScreen';
 import HostControlPanel from '../components/HostControlPanel';
 import WhiteboardOverlay from '../components/WhiteboardOverlay';
+import FeedbackModal from '../components/FeedbackModal';
 
 const SERVER_URL = "http://localhost:8000";
 
@@ -102,6 +103,7 @@ export default function VideoMeetComponent() {
   const [pinnedId, setPinnedId] = useState(null); // socketId | 'local'
   const [whiteboardVisible, setWhiteboardVisible] = useState(false);
   const [whiteboardPresenter, setWhiteboardPresenter] = useState('');
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const videoEnabledRef = useRef(true);
   const audioEnabledRef = useRef(true);
   const reactionTimersRef = useRef([]);
@@ -511,40 +513,7 @@ export default function VideoMeetComponent() {
     }
   }, [screenSharing, startScreenShare, stopScreenShare]);
 
-  const endCall = useCallback(() => {
-    // Clear session phase so next visit shows PreJoinCard fresh
-    sessionStorage.removeItem(`convox-phase:${window.location.href}`);
-    try {
-      recognitionRef.current?.stop();
-    } catch {
-      // ignore
-    }
-    recognitionActiveRef.current = false;
-    setCaptionsEnabled(false);
-    if (recordingRef.current && recordingRef.current.state === 'recording') {
-      recordingRef.current.stop();
-    }
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-    recordingStreamRef.current?.getTracks().forEach(t => t.stop());
-    recordingStreamRef.current = null;
-    setIsRecording(false);
-    // Stop all tracks
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-    }
-    // Close all peer connections
-    Object.values(peersRef.current).forEach(pc => pc.close());
-    peersRef.current = {};
-    // Disconnect socket
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-    }
-    // Navigate away
-    window.location.href = "/home";
-  }, []);
+  const oldEndCall = null; // placeholder for diff since we merged endCall down to line 1200
 
   /* -------------------- REACTIONS + HAND -------------------- */
 
@@ -1202,6 +1171,52 @@ export default function VideoMeetComponent() {
       setIsConnected(true);
     }
   };
+
+  // Helper to completely tear down media and sockets before navigating away
+  const performCleanup = useCallback(() => {
+    sessionStorage.removeItem(`convox-phase:${window.location.href}`);
+    try { recognitionRef.current?.stop(); } catch { }
+    recognitionActiveRef.current = false;
+    setCaptionsEnabled(false);
+    
+    if (recordingRef.current && recordingRef.current.state === 'recording') {
+      recordingRef.current.stop();
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    recordingStreamRef.current?.getTracks().forEach(t => t.stop());
+    recordingStreamRef.current = null;
+    setIsRecording(false);
+    
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    Object.values(peersRef.current).forEach(pc => pc.close());
+    peersRef.current = {};
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+  }, []);
+
+  // ── Call teardown ──
+  const endCall = useCallback(() => {
+    if (user && user.username && phase === 'in-meeting') {
+      setShowFeedbackModal(true);
+      return; 
+    }
+    performCleanup();
+    intentionalDisconnectRef.current = true;
+    window.location.href = user?.username ? '/history' : '/home';
+  }, [user, phase, performCleanup]);
+
+  const handleFeedbackClose = useCallback(() => {
+    setShowFeedbackModal(false);
+    performCleanup();
+    intentionalDisconnectRef.current = true;
+    window.location.href = user?.username ? '/history' : '/home';
+  }, [user, performCleanup]);
 
   // ── Pre-join card (shown to everyone before entering) ──
   if (!shouldShowLobby && phase === 'prejoin') {
@@ -1917,6 +1932,12 @@ export default function VideoMeetComponent() {
         isHost={isHost}
         presenter={whiteboardPresenter}
         onClose={toggleWhiteboard}
+      />
+
+      {/* ── Feedback Modal ── */}
+      <FeedbackModal 
+        isOpen={showFeedbackModal} 
+        onClose={handleFeedbackClose} 
       />
     </div>
   );

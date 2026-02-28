@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
+import axios from 'axios';
 import { useAuth } from '../contexts/useAuth';
 import {
   Video, Shield, Zap, Users, Globe, Star,
@@ -238,6 +239,30 @@ export default function LandingPage() {
   const { dark, toggle } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [realFeedback, setRealFeedback] = useState([]);
+
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8000";
+        const response = await axios.get(`${SERVER_URL}/api/v1/feedback/public`);
+        if (response.data.success && response.data.feedbacks) {
+          setRealFeedback(response.data.feedbacks);
+        }
+      } catch (err) {
+        console.error("Failed to load feedback:", err);
+      }
+    };
+    fetchFeedback();
+  }, []);
+
+  const displayTestimonials = realFeedback.length > 0 ? realFeedback.map(f => ({
+    name: f.name,
+    role: "ConvoX User",
+    text: f.comment,
+    stars: f.rating,
+    avatar: f.avatar
+  })) : TESTIMONIALS;
 
   const { scrollY } = useScroll();
   const navBg = useTransform(
@@ -502,8 +527,8 @@ export default function LandingPage() {
             <h2 className={`text-4xl sm:text-5xl font-black ${t.heading(dark)}`}>Loved by thousands</h2>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((item, i) => (
-              <motion.div key={item.name} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+            {displayTestimonials.slice(0, 3).map((item, i) => (
+              <motion.div key={item.name + i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
                 whileHover={{ y: -4, transition: { duration: 0.2 } }}
                 className={`${t.glass(dark)} rounded-2xl p-8 flex flex-col gap-4`}>
                 <div className="flex gap-1">
@@ -511,9 +536,13 @@ export default function LandingPage() {
                 </div>
                 <p className={`text-sm leading-relaxed italic ${t.body(dark)}`}>"{item.text}"</p>
                 <div className="flex items-center gap-3 mt-auto">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                    {item.name[0]}
-                  </div>
+                  {item.avatar ? (
+                    <img src={item.avatar} alt={item.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                      {item.name[0]?.toUpperCase() || 'A'}
+                    </div>
+                  )}
                   <div>
                     <div className={`font-semibold text-sm ${t.heading(dark)}`}>{item.name}</div>
                     <div className={`text-xs ${t.muted(dark)}`}>{item.role}</div>

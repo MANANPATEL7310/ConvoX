@@ -14,7 +14,7 @@ import googleAuthRoutes from "./routes/google.auth.routes.js";
 import scheduleRoutes from "./routes/schedule.routes.js";
 import { startScheduleWorker } from "./utils/scheduleWorker.js";
 import notificationRoutes from "./routes/notification.routes.js";
-
+import feedbackRoutes from "./routes/feedback.routes.js";
 
 const app = express();
 const server = createServer(app);
@@ -38,6 +38,7 @@ app.use("/api/v1/invite", inviteRoutes);
 app.use("/api/v1/auth", googleAuthRoutes);
 app.use("/api/v1/schedule", scheduleRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/feedback", feedbackRoutes);
 
 const start = async () => {
     try {
