@@ -334,6 +334,28 @@
   overflow: hidden;
 }
 
+/* ── Floating reactions ── */
+.reactionFloat {
+  position: absolute;
+  bottom: 110px;
+  font-size: 32px;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+  pointer-events: none;
+  animation: reactionFloat 2.8s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes reactionFloat {
+  0% {
+    transform: translateY(0) scale(0.95);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(-160px) scale(1.35);
+    opacity: 0;
+  }
+}
+
 /* ── 0 remote users: waiting state ── */
 .conferenceView.waitingState {
   display: flex;

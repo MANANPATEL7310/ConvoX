@@ -15,6 +15,10 @@ import { toast } from 'sonner';
 import { Badge, IconButton } from '@mui/material';
 import ChatIcon from '@mui/icons-material/Chat';
 import CallEndIcon from '@mui/icons-material/CallEnd';
+import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
+import PanToolIcon from '@mui/icons-material/PanTool';
+import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import { Loader2 } from 'lucide-react';
 
 const BACKEND_URL = 'http://localhost:8000';
@@ -79,12 +83,14 @@ function VideoGrid() {
 
 export default function SFURoom({
   roomName, username, onEndCall, showChat, onToggleChat, newMessages, chatPanel,
-  isHost, waitlistCount, onToggleShareCard, onToggleAdmitPanel
+  isHost, waitlistCount, onToggleShareCard, onToggleAdmitPanel,
+  onSendReaction, onToggleRaiseHand, isHandRaised, reactionOptions = [],
 }) {
   const [token,  setToken]  = useState(null);
   const [wsUrl,  setWsUrl]  = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,  setError]  = useState(null);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
 
   /* Fetch LiveKit join token from backend */
   useEffect(() => {
@@ -190,6 +196,61 @@ export default function SFURoom({
               <ChatIcon />
             </IconButton>
           </Badge>
+
+          {/* Reactions */}
+          <div style={{ position: 'relative' }}>
+            <IconButton
+              onClick={() => setShowReactionPicker((p) => !p)}
+              title="Send reaction"
+              style={{ color: 'white' }}
+            >
+              <EmojiEmotionsIcon />
+            </IconButton>
+            {showReactionPicker && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 46,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  background: 'rgba(15,23,42,0.95)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: 999,
+                  padding: '6px 10px',
+                  display: 'flex',
+                  gap: 8,
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+                  zIndex: 30,
+                }}
+              >
+                {(reactionOptions.length ? reactionOptions : ['👍','🎉','❤️']).map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => { setShowReactionPicker(false); onSendReaction?.(emoji); }}
+                    style={{
+                      fontSize: 20,
+                      lineHeight: '20px',
+                      padding: '2px 4px',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Raise hand */}
+          <IconButton
+            onClick={onToggleRaiseHand}
+            title={isHandRaised ? 'Lower hand' : 'Raise hand'}
+            style={{ color: isHandRaised ? '#f59e0b' : 'white' }}
+          >
+            {isHandRaised ? <PanToolIcon /> : <PanToolOutlinedIcon />}
+          </IconButton>
 
           {/* Share button — host only */}
           {isHost && (

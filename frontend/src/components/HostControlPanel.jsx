@@ -1,12 +1,13 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Check, UserX, Mic, MicOff, Video, VideoOff, Shield, X, Share2 } from 'lucide-react';
+import { Users, Check, UserX, Mic, MicOff, Video, VideoOff, Shield, X, Share2, Hand } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function HostControlPanel({
   waitlist = [],
   participants = [],
   mediaStates = {},
+  raisedHands = {},
   onAdmit,
   onReject,
   onMuteUser,
@@ -174,6 +175,14 @@ export default function HostControlPanel({
                           <p className={`text-sm font-semibold ${dark ? 'text-white' : 'text-gray-900'}`}>
                             {p.username} {p.isSelf ? '(You)' : ''}
                           </p>
+                          {raisedHands[p.socketId] && (
+                            <div className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              dark ? 'bg-amber-500/20 text-amber-200' : 'bg-amber-50 text-amber-600'
+                            }`}>
+                              <Hand className="w-3 h-3" />
+                              Hand raised
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 text-[11px]">
                             <span className={`inline-flex items-center gap-1 ${audioOn ? 'text-emerald-400' : 'text-rose-400'}`}>
                               {audioOn ? <Mic className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}

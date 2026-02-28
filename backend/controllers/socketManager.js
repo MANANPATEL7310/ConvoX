@@ -436,6 +436,29 @@ export const connectToSocket = (server) => {
         socket.on("typing",      async (u) => broadcastToRoomExcludeSelf("user-typing",      u));
         socket.on("stop-typing", async (u) => broadcastToRoomExcludeSelf("user-stop-typing", u));
 
+        /* ── Emoji reactions + Raise hand ── */
+        socket.on("reaction", async ({ emoji }) => {
+            const roomKey = socket.data.roomKey;
+            if (!roomKey || !emoji) return;
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("reaction", {
+                socketId: socket.id,
+                emoji,
+            }));
+        });
+
+        socket.on("raise-hand", async ({ raised }) => {
+            const roomKey = socket.data.roomKey;
+            if (!roomKey) return;
+            const username = socketUsernames.get(socket.id) || socket.data.username || `User ${socket.id.slice(-4)}`;
+            const users = await client.sMembers(roomKey);
+            users.forEach(uid => io.to(uid).emit("raise-hand", {
+                socketId: socket.id,
+                username,
+                raised: !!raised,
+            }));
+        });
+
         /* ── Screen share signalling ── */
         socket.on("screen-share-toggled", async ({ sharing }) => {
             await broadcastToRoomExcludeSelf("screen-share-toggled", {

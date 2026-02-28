@@ -10,6 +10,9 @@ import ScreenShareIcon from '@mui/icons-material/ScreenShare';
 import StopScreenShareIcon from '@mui/icons-material/StopScreenShare';
 import ChatIcon from '@mui/icons-material/Chat';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import EmojiEmotionsIcon from '@mui/icons-material/EmojiEmotions';
+import PanToolIcon from '@mui/icons-material/PanTool';
+import PanToolOutlinedIcon from '@mui/icons-material/PanToolOutlined';
 import { useAuth } from '../contexts/useAuth';
 import styles from "../styles/videoComponent.module.css";
 import { toast } from "sonner";
@@ -52,6 +55,8 @@ const QUALITY_PRESETS = {
   hd: { width: 1920, height: 1080, frameRate: 30, maxBitrate: 1_800_000 },
 };
 
+const REACTION_OPTIONS = ['👍', '🎉', '❤️'];
+
 export default function VideoMeetComponent() {
   // Refs for proper cleanup and state management
   const socketRef      = useRef(null);
@@ -81,8 +86,13 @@ export default function VideoMeetComponent() {
   const [videoQuality, setVideoQuality] = useState('standard');
   const videoQualityRef = useRef('standard');
   const [mediaStates, setMediaStates] = useState({});
+  const [reactions, setReactions] = useState([]);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [raisedHands, setRaisedHands] = useState({});
   const videoEnabledRef = useRef(true);
   const audioEnabledRef = useRef(true);
+  const reactionTimersRef = useRef([]);
+  const isHostRef = useRef(false);
 
   // ── Waiting room state ──
   // phase: 'prejoin' | 'connecting' | 'waiting' | 'rejected' | 'in-meeting'
@@ -115,9 +125,21 @@ export default function VideoMeetComponent() {
     audioEnabledRef.current = audioEnabled;
   }, [audioEnabled]);
 
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
+
+  useEffect(() => {
+    return () => {
+      reactionTimersRef.current.forEach((t) => clearTimeout(t));
+      reactionTimersRef.current = [];
+    };
+  }, []);
+
   // Use derived state for display username
   const username = user?.username || lobbyUsername;
   const shouldShowLobby = !user?.username && !isConnected;
+  const isHandRaised = !!raisedHands[socketIdRef.current];
 
   // Keep usernameRef always current so socket callbacks never have a stale value
   useEffect(() => { usernameRef.current = username; }, [username]);
@@ -434,6 +456,34 @@ export default function VideoMeetComponent() {
     window.location.href = "/home";
   }, []);
 
+  /* -------------------- REACTIONS + HAND -------------------- */
+
+  const addReaction = useCallback((emoji) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    const x = Math.random() * 60 + 20; // 20–80% of screen width
+    setReactions((prev) => [...prev, { id, emoji, x }]);
+    const timer = setTimeout(() => {
+      setReactions((prev) => prev.filter((r) => r.id !== id));
+    }, 2800);
+    reactionTimersRef.current.push(timer);
+  }, []);
+
+  const sendReaction = useCallback((emoji) => {
+    if (!emoji) return;
+    setShowReactionPicker(false);
+    socketRef.current?.emit('reaction', { emoji });
+  }, []);
+
+  const toggleRaiseHand = useCallback(() => {
+    const selfId = socketIdRef.current;
+    if (!selfId) return;
+    const next = !raisedHands[selfId];
+    setRaisedHands((prev) => ({ ...prev, [selfId]: next }));
+    socketRef.current?.emit('raise-hand', { raised: next });
+    if (next) toast.success('Hand raised');
+    else toast.info('Hand lowered');
+  }, [raisedHands]);
+
   /* -------------------- CHAT -------------------- */
 
   const addMessage = useCallback((data, sender, socketIdSender) => {
@@ -605,6 +655,24 @@ export default function VideoMeetComponent() {
         }));
       });
 
+      socket.on('reaction', ({ emoji }) => {
+        if (!emoji) return;
+        addReaction(emoji);
+      });
+
+      socket.on('raise-hand', ({ socketId, username: raisedBy, raised }) => {
+        if (!socketId) return;
+        setRaisedHands((prev) => {
+          const next = { ...prev };
+          if (raised) next[socketId] = true;
+          else delete next[socketId];
+          return next;
+        });
+        if (raised && isHostRef.current && socketId !== socketIdRef.current) {
+          toast.info(`${raisedBy || 'Someone'} raised a hand`);
+        }
+      });
+
       socket.on('host-force-mute', () => {
         if (!localStreamRef.current) return;
         const tracks = localStreamRef.current.getAudioTracks();
@@ -746,6 +814,7 @@ export default function VideoMeetComponent() {
         setRemoteStreams(prev => prev.filter(v => v.id !== socketId));
         setUserNames(prev => { const n = { ...prev }; delete n[socketId]; return n; });
         setMediaStates(prev => { const n = { ...prev }; delete n[socketId]; return n; });
+        setRaisedHands(prev => { const n = { ...prev }; delete n[socketId]; return n; });
       });
 
       socket.on('chat-message', (data, sender, sid) => addMessageRef.current(data, sender, sid));
@@ -906,6 +975,19 @@ export default function VideoMeetComponent() {
         </div>
       )}
 
+      {/* ── Floating reactions overlay ── */}
+      <div className="pointer-events-none absolute inset-0 z-30">
+        {reactions.map((r) => (
+          <div
+            key={r.id}
+            className={styles.reactionFloat}
+            style={{ left: `${r.x}%` }}
+          >
+            {r.emoji}
+          </div>
+        ))}
+      </div>
+
       {/* ── SFU mode — LiveKit handles everything ── */}
       {mode === 'sfu' && !upgrading ? (
         <SFURoom
@@ -918,7 +1000,11 @@ export default function VideoMeetComponent() {
           isHost={isHost}
           waitlistCount={waitlist.length}
           onToggleShareCard={() => setShowShareCard(true)}
-          onToggleAdmitPanel={() => setShowAdmitPanel(p => !p)}
+          onToggleAdmitPanel={() => setShowHostPanel(p => !p)}
+          onSendReaction={sendReaction}
+          onToggleRaiseHand={toggleRaiseHand}
+          isHandRaised={isHandRaised}
+          reactionOptions={REACTION_OPTIONS}
           chatPanel={
             <ChatPanel
               messages={messages}
@@ -987,6 +1073,14 @@ export default function VideoMeetComponent() {
                   <div className={styles.presenterThumb}>
                     <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
                     <div className={styles.thumbLabel}>You</div>
+                    {raisedHands[socketIdRef.current] && (
+                      <div
+                        className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold"
+                        style={{ background: 'rgba(245,158,11,0.9)', color: '#111827' }}
+                      >
+                        ✋
+                      </div>
+                    )}
                   </div>
 
                   {/* Remote cameras (all peers, including the sharer so you see their face) */}
@@ -999,6 +1093,14 @@ export default function VideoMeetComponent() {
                           className="w-full h-full object-cover"
                           ref={el => { if (el && rs.stream) el.srcObject = rs.stream; }}
                         />
+                        {raisedHands[rs.id] && (
+                          <div
+                            className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold"
+                            style={{ background: 'rgba(245,158,11,0.9)', color: '#111827' }}
+                          >
+                            ✋
+                          </div>
+                        )}
                         {isSpeaking && <div className={styles.speakingRing} />}
                         <div className={styles.thumbLabel}>{userNames[rs.id] || `User ${rs.id.slice(-4)}`}</div>
                       </div>
@@ -1027,6 +1129,14 @@ export default function VideoMeetComponent() {
                             className="w-full h-full object-cover"
                             ref={el => { if (el && remoteStream.stream) el.srcObject = remoteStream.stream; }}
                           />
+                          {raisedHands[remoteStream.id] && (
+                            <div
+                              className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold"
+                              style={{ background: 'rgba(245,158,11,0.9)', color: '#111827' }}
+                            >
+                              ✋
+                            </div>
+                          )}
                           {isSpeaking && <div className={styles.speakingRing} />}
                           {isSpeaking && (
                             <div className={styles.speakingMicBadge} title="Speaking">
@@ -1058,6 +1168,14 @@ export default function VideoMeetComponent() {
                     className="w-full h-full object-cover bg-black" 
                     style={{ transform: 'scaleX(-1)' }}
                   />
+                  {raisedHands[socketIdRef.current] && (
+                    <div
+                      className="absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-semibold"
+                      style={{ background: 'rgba(245,158,11,0.9)', color: '#111827' }}
+                    >
+                      ✋
+                    </div>
+                  )}
                   <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
                     {screenSharing ? '🖥 Sharing' : 'You'}
                   </div>
@@ -1066,7 +1184,10 @@ export default function VideoMeetComponent() {
             )}
 
             {/* ── Bottom Controls (always visible) ── */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4">
+            <div
+              className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4"
+              style={{ position: 'absolute' }}
+            >
               <IconButton onClick={toggleVideo} style={{ color: "white" }}>
                 {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
               </IconButton>
@@ -1092,6 +1213,57 @@ export default function VideoMeetComponent() {
                   <ChatIcon />
                 </IconButton>
               </Badge>
+              <div style={{ position: 'relative' }}>
+                <IconButton
+                  onClick={() => setShowReactionPicker(p => !p)}
+                  title="Send reaction"
+                  style={{ color: "white" }}
+                >
+                  <EmojiEmotionsIcon />
+                </IconButton>
+                {showReactionPicker && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 46,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(15,23,42,0.95)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      borderRadius: 999,
+                      padding: '6px 10px',
+                      display: 'flex',
+                      gap: 8,
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+                      zIndex: 30,
+                    }}
+                  >
+                    {REACTION_OPTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        onClick={() => sendReaction(emoji)}
+                        style={{
+                          fontSize: 20,
+                          lineHeight: '20px',
+                          padding: '2px 4px',
+                          borderRadius: 8,
+                          background: 'transparent',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <IconButton
+                onClick={toggleRaiseHand}
+                title={isHandRaised ? 'Lower hand' : 'Raise hand'}
+                style={{ color: isHandRaised ? '#f59e0b' : 'white' }}
+              >
+                {isHandRaised ? <PanToolIcon /> : <PanToolOutlinedIcon />}
+              </IconButton>
               {/* Host controls panel toggle */}
               {isHost && (
                 <Badge badgeContent={waitlist.length} max={99} color="error">
@@ -1174,6 +1346,7 @@ export default function VideoMeetComponent() {
             isSelf: socketId === socketIdRef.current,
           }))}
           mediaStates={mediaStates}
+          raisedHands={raisedHands}
           onAdmit={handleAdmitUser}
           onReject={handleRejectUser}
           onMuteUser={handleMuteUser}
