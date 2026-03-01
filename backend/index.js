@@ -15,6 +15,9 @@ import scheduleRoutes from "./routes/schedule.routes.js";
 import { startScheduleWorker } from "./utils/scheduleWorker.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import feedbackRoutes from "./routes/feedback.routes.js";
+import helmet from "helmet";
+import compression from "compression";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 const server = createServer(app);
@@ -31,6 +34,24 @@ app.use(cors({
 app.use(express.json({ limit: "40kb" }));
 app.use(express.urlencoded({ limit: "40kb", extended: true }));
 app.use(cookieParser());
+
+// Security HTTP headers
+app.use(helmet());
+
+// Compress response bodies for performance
+app.use(compression());
+
+// Rate limiting to prevent abuse
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    message: { success: false, message: "Too many requests from this IP, please try again in 15 minutes." }
+});
+
+// Apply rate limiter to all API routes
+app.use("/api", apiLimiter);
 
 app.use("/api/v1/users", authRoutes);
 app.use("/api/v1/livekit", livekitRoutes);
