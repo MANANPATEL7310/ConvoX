@@ -405,6 +405,7 @@
     transform: translateY(0) scale(0.95);
     opacity: 0.95;
   }
+
   100% {
     transform: translateY(-160px) scale(1.35);
     opacity: 0;
@@ -431,6 +432,7 @@
   text-align: center;
   backdrop-filter: blur(6px);
   pointer-events: none;
+  z-index: 99;
 }
 
 .captionLine {

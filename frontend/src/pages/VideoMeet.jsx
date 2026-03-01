@@ -660,7 +660,12 @@ export default function VideoMeetComponent() {
       ts: Date.now(),
       self: true,
     });
-    socketRef.current?.emit('caption', { id, text, ts: Date.now() });
+    socketRef.current?.emit('caption', { 
+      id, 
+      text, 
+      ts: Date.now(),
+      speaker: usernameRef.current || 'You'
+    });
   }, [addCaptionLine]);
 
   const stopRecognition = useCallback(() => {
@@ -1330,23 +1335,6 @@ export default function VideoMeetComponent() {
         ))}
       </div>
 
-      {/* ── Captions overlay ── */}
-      {captionsEnabled && (captionLines.length > 0 || liveCaption) && (
-        <div className={styles.captionOverlay}>
-          {captionLines.map((line) => (
-            <div key={line.id} className={styles.captionLine}>
-              <span className={styles.captionSpeaker}>{line.speaker}:</span>
-              <span>{line.text}</span>
-            </div>
-          ))}
-          {liveCaption && (
-            <div className={`${styles.captionLine} ${styles.captionInterim}`}>
-              <span className={styles.captionSpeaker}>{liveCaption.speaker}:</span>
-              <span>{liveCaption.text}</span>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ── Recording indicator ── */}
       {isRecording && (
@@ -1889,6 +1877,24 @@ export default function VideoMeetComponent() {
             />
           )}
         </>
+      )}
+
+      {/* ── Captions overlay (Global for both P2P and SFU) ── */}
+      {captionsEnabled && (captionLines.length > 0 || liveCaption) && (
+        <div className={styles.captionOverlay}>
+          {captionLines.map((line) => (
+            <div key={line.id} className={styles.captionLine}>
+              <span className={styles.captionSpeaker}>{line.speaker}:</span>
+              <span>{line.text}</span>
+            </div>
+          ))}
+          {liveCaption && (
+            <div className={`${styles.captionLine} ${styles.captionInterim}`}>
+              <span className={styles.captionSpeaker}>{liveCaption.speaker}:</span>
+              <span>{liveCaption.text}</span>
+            </div>
+          )}
+        </div>
       )}
 
       {/* ── Share Meeting Card (host only) ── */}
