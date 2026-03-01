@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   User as UserIcon, Shield, Mail, Calendar, 
-  Video, Users, Star, ArrowLeft, Camera, Loader2, Save
+  Video, Users, Star, ArrowLeft, Camera, Loader2, Save, Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,19 @@ import { toast } from 'sonner';
 import axios from 'axios';
 
 const server_url = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
+
+const PREDEFINED_AVATARS = [
+  '', // Empty string for initials
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jude&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Leah&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/avataaars/svg?seed=Sam&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Robot1&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/bottts/svg?seed=Robot2&backgroundColor=b6e3f4',
+];
 
 const container = {
   hidden: {},
@@ -171,9 +184,9 @@ export default function Profile() {
               <div className="relative mb-6">
                 <div className="w-28 h-28 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-4xl font-bold text-white shadow-xl shadow-indigo-500/20 overflow-hidden ring-4 ring-background">
                   {profileData.avatar ? (
-                    <img src={profileData.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    <img src={profileData.avatar} alt="Avatar" className="w-full h-full object-cover bg-white" />
                   ) : (
-                    profileData.username?.charAt(0).toUpperCase() || 'U'
+                    profileData.name?.charAt(0).toUpperCase() || profileData.username?.charAt(0).toUpperCase() || 'U'
                   )}
                 </div>
               </div>
@@ -258,18 +271,46 @@ export default function Profile() {
                       required
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className={`text-sm font-medium ${dark ? 'text-gray-300' : 'text-gray-700'}`}>Avatar URL (Optional)</label>
-                    <div className="flex gap-3">
-                      <div className="relative flex-1">
-                        <Camera className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${dark ? 'text-gray-500' : 'text-gray-400'}`} />
-                        <Input 
-                          value={profileData.avatar}
-                          onChange={(e) => setProfileData({...profileData, avatar: e.target.value})}
-                          placeholder="https://example.com/my-photo.jpg"
-                          className={`pl-10 ${dark ? 'bg-black/20 border-white/[0.1] text-white placeholder:text-gray-500' : ''}`}
-                        />
-                      </div>
+                  <div className="space-y-3 md:col-span-2 mt-2 border-t pt-6 pb-2 dark:border-white/[0.06] border-gray-100">
+                    <label className={`text-sm font-bold flex items-center gap-2 ${dark ? 'text-gray-200' : 'text-gray-800'}`}>
+                      <Camera className="w-4 h-4 text-indigo-500" /> Choose an Avatar
+                    </label>
+                    <p className={`text-xs ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Select how you want to appear to others in meetings.
+                    </p>
+                    <div className="flex flex-wrap gap-4 mt-4">
+                      {PREDEFINED_AVATARS.map((avatarUrl, idx) => {
+                        const isSelected = profileData.avatar === avatarUrl;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setProfileData({ ...profileData, avatar: avatarUrl })}
+                            className={`relative w-14 h-14 rounded-full overflow-hidden transition-all duration-200 hover:scale-110 ${
+                              isSelected 
+                                ? 'ring-4 ring-indigo-500 ring-offset-2 dark:ring-offset-gray-900 scale-110 shadow-lg' 
+                                : `ring-1 ${dark ? 'ring-white/10 hover:ring-white/30' : 'ring-gray-200 hover:ring-gray-400'}`
+                            }`}
+                          >
+                            {avatarUrl ? (
+                              <img src={avatarUrl} alt={`Avatar option ${idx}`} className="w-full h-full object-cover bg-white" />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-lg font-bold text-white">
+                                {profileData.name?.charAt(0).toUpperCase() || profileData.username?.charAt(0).toUpperCase() || 'U'}
+                              </div>
+                            )}
+                            
+                            {/* Selected overlay checkmark */}
+                            {isSelected && (
+                              <div className="absolute inset-0 bg-indigo-500/20 flex items-center justify-center">
+                                <div className="bg-indigo-500 rounded-full p-0.5 shadow-sm">
+                                  <Check className="w-4 h-4 text-white" />
+                                </div>
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
