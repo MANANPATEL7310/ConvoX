@@ -87,7 +87,8 @@ export const connectToSocket = (server) => {
             methods: ["GET", "POST"],
             allowedHeaders: ["*"],
             credentials: true
-        }
+        },
+        maxHttpBufferSize: 1e7 // 10MB to accommodate 5MB files (accounting for base64 inflation)
     });
 
     // Map: socketId → username
@@ -380,20 +381,28 @@ export const connectToSocket = (server) => {
 
         /* ── File sharing (public) ── */
         socket.on("file-share", async ({ file }) => {
-            const roomKey  = socket.data.roomKey;
+            const roomKey = socket.data.roomKey;
             if (!roomKey || !file?.data) return;
+            
+            // Get sender name safely
             const sender = socketUsernames.get(socket.id) || socket.data.username || `User ${socket.id.slice(-4)}`;
+            
+            // Get all users in the room
             const users = await client.sMembers(roomKey);
-            users.forEach(uid => io.to(uid).emit("file-share", {
-                sender,
-                socketId: socket.id,
-                file: {
-                    name: file.name,
-                    type: file.type,
-                    size: file.size,
-                    data: file.data,
-                },
-            }));
+            
+            // Broadcast the file correctly
+            users.forEach(uid => {
+                io.to(uid).emit("file-share", {
+                    sender: sender,
+                    socketId: socket.id,
+                    file: {
+                        name: file.name,
+                        type: file.type,
+                        size: file.size,
+                        data: file.data,
+                    },
+                });
+            });
         });
 
         /* ── Media state updates (for host UI) ── */
