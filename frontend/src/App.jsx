@@ -6,6 +6,7 @@ import { AuthProvider } from './contexts/AuthContext.jsx';
 import { ThemeProvider } from './contexts/ThemeContext.jsx';
 import HomeComponent from './pages/Home';
 import History from './pages/History';
+import Profile from './pages/Profile';
 import VideoMeetComponent from './pages/VideoMeet';
 import PrivateRoute from './components/PrivateRoute';
 import { Toaster } from './components/ui/sonner';
@@ -25,6 +26,7 @@ function App() {
                   <Route element={<PrivateRoute />}>
                       <Route path='/home' element={<HomeComponent />} /> 
                       <Route path='/history' element={<History />} />
+                      <Route path='/profile' element={<Profile />} />
                       <Route path='/:url' element={<VideoMeetComponent />} />
                   </Route>
               </Routes>

@@ -15,6 +15,7 @@ import PageWrapper from '../components/PageWrapper';
 import ShareMeetingCard from '../components/ShareMeetingCard';
 import ScheduleMeetingCard from '../components/ScheduleMeetingCard';
 import ConfirmCancelModal from '../components/ConfirmCancelModal';
+import UserDropdown from '../components/UserDropdown';
 import { toast } from 'sonner';
 import axios from 'axios';
 
@@ -375,22 +376,7 @@ export default function HomeComponent() {
                   )}
                 </div>
               )}
-              <Button variant="ghost" onClick={() => navigate('/history')}
-                className={`flex items-center gap-1.5 text-sm font-medium px-3 h-9 rounded-lg ${
-                  dark ? 'text-gray-400 hover:text-white hover:bg-white/[0.06]' : 'text-gray-500 hover:text-indigo-600 hover:bg-indigo-50/80'
-                }`}>
-                <History className="w-4 h-4" />
-                <span className="hidden sm:inline">History</span>
-              </Button>
-              <Button onClick={() => { logout(); navigate('/auth'); }}
-                className={`flex items-center gap-1.5 text-sm rounded-lg font-medium px-3 h-9 border transition-all ${
-                  dark
-                    ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/20'
-                    : 'bg-red-50 text-red-600 hover:bg-red-100 border-red-200/60'
-                }`}>
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
+              <UserDropdown />
             </motion.div>
           </div>
         </div>

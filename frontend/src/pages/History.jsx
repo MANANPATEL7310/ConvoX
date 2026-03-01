@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import PageWrapper from '../components/PageWrapper';
+import UserDropdown from '../components/UserDropdown';
 
 /* ─── animation variants ─── */
 const container = {
@@ -74,6 +75,7 @@ export default function History() {
                 <Home className="w-4 h-4" />
                 <span className="hidden sm:inline">Dashboard</span>
               </Button>
+              <UserDropdown />
             </motion.div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
 import axios from 'axios';
 import { useAuth } from '../contexts/useAuth';
+import UserDropdown from '../components/UserDropdown';
 import {
   Video, Shield, Zap, Users, Globe, Star,
   ArrowRight, Check, ChevronDown, Play, MonitorPlay,
@@ -303,20 +304,7 @@ export default function LandingPage() {
                       Dashboard
                     </button>
                   </Link>
-                  <button
-                    onClick={async () => { await logout(); navigate('/'); }}
-                    style={{
-                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #f43f5e, #dc2626)',
-                      color: '#fff', cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
-                      boxShadow: '0 2px 10px rgba(220,38,38,0.28)',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.opacity = '0.9'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = '1'; }}
-                  >
-                    Logout
-                  </button>
+                  <UserDropdown />
                 </>
               ) : (
                 <>
