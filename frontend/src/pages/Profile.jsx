@@ -387,10 +387,10 @@ export default function Profile() {
                 </form>
               </motion.div>
             ) : (
-              <motion.div variants={fadeUp} className={`rounded-2xl overflow-hidden p-6 text-center ${dark ? 'dark-glass border border-white/[0.06] bg-gradient-to-br from-indigo-500/5 to-purple-500/5' : 'glass-card border border-gray-200/50 bg-indigo-50/30'}`}>
-                <Shield className={`w-10 h-10 mx-auto mb-4 ${dark ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                <h3 className={`text-lg font-bold mb-2 ${dark ? 'text-white' : 'text-gray-900'}`}>Linked Account</h3>
-                <p className={`text-sm max-w-md mx-auto leading-relaxed ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+              <motion.div variants={fadeUp} className={`rounded-2xl overflow-hidden p-8 flex flex-col items-center justify-center text-center ${dark ? 'dark-glass border border-white/[0.06] bg-gradient-to-br from-indigo-500/5 to-purple-500/5' : 'glass-card border border-gray-200/50 bg-indigo-50/30'}`}>
+                <Shield className={`w-12 h-12 mb-4 ${dark ? 'text-indigo-400' : 'text-indigo-500'}`} />
+                <h3 className={`text-xl font-bold mb-3 ${dark ? 'text-white' : 'text-gray-900'}`}>Linked Account</h3>
+                <p className={`text-base max-w-sm leading-relaxed ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
                   You signed in using a Google account. Password management is handled securely by your provider.
                 </p>
               </motion.div>
