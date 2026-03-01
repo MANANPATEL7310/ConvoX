@@ -59,7 +59,7 @@ export const Signup = async (req, res) => {
             withCredentials: true,
             httpOnly: true, // Security: prevent XSS attacks
             secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-            sameSite: 'strict', // Prevent CSRF attacks
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Allow cross-site cookies in production
             maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
         });
 
@@ -94,7 +94,7 @@ export const Login = async (req, res) => {
             withCredentials: true,
             httpOnly: true, // Security: prevent XSS attacks
             secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-            sameSite: 'strict', // Prevent CSRF attacks
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict', // Allow cross-site cookies in production
             maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
         });
         
@@ -109,7 +109,7 @@ export const Logout = (req, res) => {
     res.clearCookie("token", {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
     });
     res.status(200).json({ message: "Logged out successfully" });
 };
