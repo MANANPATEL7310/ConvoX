@@ -10,8 +10,8 @@ import {
   useIsSpeaking,
 } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import axios from 'axios';
 import { toast } from 'sonner';
+import { useGenerateSFUTokenMutation } from '../hooks/api/useMeetings';
 import { Badge, IconButton, Tooltip } from '@mui/material';
 import ChatIcon from '@mui/icons-material/Chat';
 import CallEndIcon from '@mui/icons-material/CallEnd';
@@ -164,28 +164,33 @@ export default function SFURoom({
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [pinnedSid, setPinnedSid] = useState(null);
 
+  const { mutateAsync: generateToken } = useGenerateSFUTokenMutation();
+
   /* Fetch LiveKit join token from backend */
   useEffect(() => {
+    let active = true;
     const fetchToken = async () => {
       try {
         setLoading(true);
-        const { data } = await axios.post(
-          `${BACKEND_URL}/api/v1/livekit/token`,
-          { roomName, participantName: username },
-          { withCredentials: true }
-        );
+        const data = await generateToken({
+          roomName,
+          participantName: username,
+        });
+        if (!active) return;
         setToken(data.token);
         setWsUrl(data.wsUrl);
       } catch (err) {
+        if (!active) return;
         console.error('LK token error:', err);
         setError('Failed to connect to the call server. Falling back to P2P.');
         toast.error('SFU connection failed — you may still be on P2P.');
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     fetchToken();
-  }, [roomName, username]);
+    return () => { active = false; };
+  }, [roomName, username, generateToken]);
 
   const handleDisconnected = useCallback(() => {
     toast.info('Disconnected from SFU room.');

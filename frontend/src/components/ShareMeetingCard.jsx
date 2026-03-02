@@ -5,9 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
-import axios from 'axios';
-
-const server_url = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
+import { useSendMeetingInvitesMutation } from '../hooks/api/useMeetings';
 
 /**
  * ShareMeetingCard — Premium meeting share modal
@@ -24,7 +22,9 @@ export default function ShareMeetingCard({ meetingUrl, senderName, onClose, onJo
   const [copied, setCopied] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [emails, setEmails] = useState([]);
-  const [sending, setSending] = useState(false);
+  
+  const sendInvitesMutation = useSendMeetingInvitesMutation();
+  const sending = sendInvitesMutation.isPending;
 
   /* ── Copy URL ── */
   const handleCopy = useCallback(async () => {
@@ -75,9 +75,8 @@ export default function ShareMeetingCard({ meetingUrl, senderName, onClose, onJo
       return;
     }
 
-    setSending(true);
     try {
-      const { data } = await axios.post(`${server_url}/api/v1/invite/send`, {
+      const data = await sendInvitesMutation.mutateAsync({
         meetingUrl,
         emails,
         senderName,
@@ -95,10 +94,8 @@ export default function ShareMeetingCard({ meetingUrl, senderName, onClose, onJo
     } catch (err) {
       console.error('Send invite error:', err);
       toast.error('Failed to send invites. Check SMTP configuration.');
-    } finally {
-      setSending(false);
     }
-  }, [emails, meetingUrl, senderName]);
+  }, [emails, meetingUrl, senderName, sendInvitesMutation]);
 
   return (
     <AnimatePresence>

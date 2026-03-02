@@ -12,9 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import PageWrapper from '../components/PageWrapper';
 import ThemeToggle from '../components/ThemeToggle';
 import { toast } from 'sonner';
-import axios from 'axios';
-
-const server_url = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
+import { useProfileQuery, useUpdateProfileMutation, useUpdatePasswordMutation } from '../hooks/api/useProfile';
 
 const PREDEFINED_AVATARS = [
   '', // Empty string for initials
@@ -44,9 +42,12 @@ export default function Profile() {
   const { user, setUser, logout } = useAuth();
   const { dark } = useTheme();
 
-  const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [savingPassword, setSavingPassword] = useState(false);
+  const { data: profileResponse, isLoading: loading } = useProfileQuery();
+  const updateProfileMutation = useUpdateProfileMutation();
+  const updatePasswordMutation = useUpdatePasswordMutation();
+
+  const savingProfile = updateProfileMutation.isPending;
+  const savingPassword = updatePasswordMutation.isPending;
   
   const [profileData, setProfileData] = useState({
     name: '',
@@ -68,36 +69,22 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    let active = true;
-    const fetchProfile = async () => {
-      try {
-        const { data } = await axios.get(`${server_url}/api/v1/users/profile`, { withCredentials: true });
-        if (active && data.success) {
-          setProfileData({
-            name: data.user.name || '',
-            username: data.user.username || '',
-            avatar: data.user.avatar || ''
-          });
-          setStats(data.stats);
-          setCreatedAt(data.user.createdAt);
-          setHasPassword(data.user.hasPassword);
-        }
-      } catch (err) {
-        console.error("Failed to fetch profile", err);
-        toast.error("Could not load profile data.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    fetchProfile();
-    return () => { active = false; };
-  }, []);
+    if (profileResponse?.success) {
+      setProfileData({
+        name: profileResponse.user.name || '',
+        username: profileResponse.user.username || '',
+        avatar: profileResponse.user.avatar || ''
+      });
+      setStats(profileResponse.stats);
+      setCreatedAt(profileResponse.user.createdAt);
+      setHasPassword(profileResponse.user.hasPassword);
+    }
+  }, [profileResponse]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    setSavingProfile(true);
     try {
-      const { data } = await axios.put(`${server_url}/api/v1/users/profile`, profileData, { withCredentials: true });
+      const data = await updateProfileMutation.mutateAsync(profileData);
       if (data.success) {
         toast.success("Profile updated successfully!");
         // Update global auth context
@@ -105,8 +92,6 @@ export default function Profile() {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to update profile.");
-    } finally {
-      setSavingProfile(false);
     }
   };
 
@@ -116,12 +101,11 @@ export default function Profile() {
       toast.error("New passwords do not match.");
       return;
     }
-    setSavingPassword(true);
     try {
-      const { data } = await axios.put(`${server_url}/api/v1/users/password`, {
+      const data = await updatePasswordMutation.mutateAsync({
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
-      }, { withCredentials: true });
+      });
       
       if (data.success) {
         toast.success("Password changed successfully!");
@@ -129,8 +113,6 @@ export default function Profile() {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to change password.");
-    } finally {
-      setSavingPassword(false);
     }
   };
 

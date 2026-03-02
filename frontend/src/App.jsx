@@ -10,13 +10,25 @@ import Profile from './pages/Profile';
 import VideoMeetComponent from './pages/VideoMeet';
 import PrivateRoute from './components/PrivateRoute';
 import { Toaster } from './components/ui/sonner';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false, // Prevents excessive refetching
+      retry: 1,                    // Retry failing requests once
+      staleTime: 5 * 60 * 1000,    // Cache data for 5 minutes by default
+    },
+  },
+});
 
 function App() {
   return (
-    <div className="App">
-       <ThemeProvider>
-       <Router>
-          <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <div className="App">
+         <ThemeProvider>
+         <Router>
+            <AuthProvider>
               <Routes>
                   <Route path='/' element={<LandingPage />} />
                   <Route path='/auth' element={<Authentication />} />
@@ -38,11 +50,12 @@ function App() {
                 visibleToasts={9}
                 duration={5000}
               />
-          </AuthProvider>
-       </Router>
-       </ThemeProvider>
-    </div>
-  )
+            </AuthProvider>
+         </Router>
+         </ThemeProvider>
+      </div>
+    </QueryClientProvider>
+  );
 }
 
 export default App
