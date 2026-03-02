@@ -31,6 +31,8 @@ import WaitingRoomScreen from '../components/WaitingRoomScreen';
 import HostControlPanel from '../components/HostControlPanel';
 import WhiteboardOverlay from '../components/WhiteboardOverlay';
 import FeedbackModal from '../components/FeedbackModal';
+import ActionControlBar from '../components/meeting/ActionControlBar';
+import MeetingCaptions from '../components/meeting/MeetingCaptions';
 
 const SERVER_URL = "http://localhost:8000";
 
@@ -1666,101 +1668,25 @@ export default function VideoMeetComponent() {
             )}
 
             {/* ── Bottom Controls (always visible) ── */}
-            <div
-              className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4"
-              style={{ position: 'absolute' }}
-            >
-              <Tooltip title={videoEnabled ? 'Turn off camera' : 'Turn on camera'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
-                <IconButton onClick={toggleVideo} style={{ color: "white" }}>
-                  {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={audioEnabled ? 'Mute microphone' : 'Unmute microphone'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
-                <IconButton onClick={toggleAudio} style={{ color: "white" }}>
-                  {audioEnabled ? <MicIcon /> : <MicOffIcon />}
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={screenSharing ? 'Stop sharing' : 'Share screen'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
-                <IconButton
-                  onClick={toggleScreenShare}
-                  style={{ color: screenSharing ? '#f97316' : 'white', position: 'relative' }}
-                >
-                  {screenSharing ? <StopScreenShareIcon /> : <ScreenShareIcon />}
-                  {/* Orange dot indicator when sharing */}
-                  {screenSharing && (
-                    <span style={{ position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: '50%', background: '#f97316', animation: 'sfuSpeakPulse 1s ease-in-out infinite alternate' }} />
-                  )}
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="End call" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
-                <IconButton onClick={endCall} style={{ color: "#ef4444" }}>
-                  <CallEndIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Open chat" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
-                <Badge badgeContent={newMessages} max={99} color="warning">
-                  <IconButton onClick={openChat} style={{ color: "white" }}>
-                    <ChatIcon />
-                  </IconButton>
-                </Badge>
-              </Tooltip>
-              {/* Host controls panel toggle */}
-              {isHost && (
-                <Tooltip title="Host controls" enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
-                  <Badge badgeContent={waitlist.length} max={99} color="error">
-                    <IconButton
-                      onClick={() => setShowHostPanel(p => !p)}
-                      style={{ color: waitlist.length > 0 ? '#fbbf24' : 'white' }}
-                    >
-                      <AdminPanelSettingsIcon />
-                    </IconButton>
-                  </Badge>
-                </Tooltip>
-              )}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 10px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  background: 'rgba(15,23,42,0.6)',
-                }}
-              >
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#cbd5f5', letterSpacing: '0.08em' }}>
-                  QUALITY
-                </span>
-                <select
-                  value={videoQuality}
-                  onChange={(e) => setVideoQuality(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    color: 'white',
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="low">Low</option>
-                  <option value="standard">Standard</option>
-                  <option value="hd">HD</option>
-                </select>
-              </div>
-              <Tooltip
-                title={mode === 'sfu' ? 'Meeting mode: SFU (3+ participants)' : 'Meeting mode: P2P (1–2 participants)'}
-                enterDelay={100}
-                enterNextDelay={50}
-                leaveDelay={0}
-                arrow
-              >
-                <span style={{ display: 'inline-flex' }}>
-                  <ModeIndicator mode={mode} participantCount={participantCount} />
-                </span>
-              </Tooltip>
-            </div>
+            <ActionControlBar
+              videoEnabled={videoEnabled}
+              toggleVideo={toggleVideo}
+              audioEnabled={audioEnabled}
+              toggleAudio={toggleAudio}
+              screenSharing={screenSharing}
+              toggleScreenShare={toggleScreenShare}
+              endCall={endCall}
+              newMessages={newMessages}
+              openChat={openChat}
+              isHost={isHost}
+              waitlistCount={waitlist.length}
+              setShowHostPanel={setShowHostPanel}
+              videoQuality={videoQuality}
+              setVideoQuality={setVideoQuality}
+              mode={mode}
+              participantCount={participantCount}
+              ModeIndicator={ModeIndicator}
+            />
 
             {/* ── Side Controls (secondary actions) ── */}
             <div
@@ -1880,22 +1806,11 @@ export default function VideoMeetComponent() {
       )}
 
       {/* ── Captions overlay (Global for both P2P and SFU) ── */}
-      {captionsEnabled && (captionLines.length > 0 || liveCaption) && (
-        <div className={styles.captionOverlay}>
-          {captionLines.map((line) => (
-            <div key={line.id} className={styles.captionLine}>
-              <span className={styles.captionSpeaker}>{line.speaker}:</span>
-              <span>{line.text}</span>
-            </div>
-          ))}
-          {liveCaption && (
-            <div className={`${styles.captionLine} ${styles.captionInterim}`}>
-              <span className={styles.captionSpeaker}>{liveCaption.speaker}:</span>
-              <span>{liveCaption.text}</span>
-            </div>
-          )}
-        </div>
-      )}
+      <MeetingCaptions
+        captionsEnabled={captionsEnabled}
+        captionLines={captionLines}
+        liveCaption={liveCaption}
+      />
 
       {/* ── Share Meeting Card (host only) ── */}
       {showShareCard && (

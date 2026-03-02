@@ -19,78 +19,8 @@ import UserDropdown from '../components/UserDropdown';
 import { toast } from 'sonner';
 import { useScheduledMeetingsQuery, useDeleteScheduledMeetingMutation } from '../hooks/api/useMeetings';
 import { useNotificationsQuery, useMarkNotificationsReadMutation } from '../hooks/api/useProfile';
-
-/* ═══════════════════════════════════════════════════════════
-   QUICK ACTIONS — each becomes a real interactive component
-   ═══════════════════════════════════════════════════════════ */
-const QUICK_ACTIONS = [
-  {
-    id: 'new-meeting',
-    icon: Video,
-    label: 'New Meeting',
-    desc: 'Start an instant meeting with a unique room code',
-    gradient: 'from-indigo-500 to-purple-600',
-    glow: 'shadow-indigo-500/25',
-    ringColor: 'ring-indigo-500/30',
-    bgLight: 'bg-indigo-50/80',
-    bgDark:  'bg-indigo-500/10',
-    accentLight: 'text-indigo-700',
-    accentDark: 'text-indigo-300',
-  },
-  {
-    id: 'team-room',
-    icon: Users,
-    label: 'Team Room',
-    desc: 'Create a persistent room and invite your whole team',
-    gradient: 'from-emerald-500 to-teal-600',
-    glow: 'shadow-emerald-500/25',
-    ringColor: 'ring-emerald-500/30',
-    bgLight: 'bg-emerald-50/80',
-    bgDark:  'bg-emerald-500/10',
-    accentLight: 'text-emerald-700',
-    accentDark: 'text-emerald-300',
-  },
-  {
-    id: 'schedule',
-    icon: Clock,
-    label: 'Schedule',
-    desc: 'Plan a future meeting and share the invite link',
-    gradient: 'from-orange-500 to-rose-500',
-    glow: 'shadow-orange-500/25',
-    ringColor: 'ring-orange-500/30',
-    bgLight: 'bg-orange-50/80',
-    bgDark:  'bg-orange-500/10',
-    accentLight: 'text-orange-700',
-    accentDark: 'text-orange-300',
-  },
-  {
-    id: 'share-link',
-    icon: LinkIcon,
-    label: 'Share Link',
-    desc: 'Generate a link to share with anyone — no signup needed',
-    gradient: 'from-blue-500 to-cyan-500',
-    glow: 'shadow-blue-500/25',
-    ringColor: 'ring-blue-500/30',
-    bgLight: 'bg-blue-50/80',
-    bgDark:  'bg-blue-500/10',
-    accentLight: 'text-blue-700',
-    accentDark: 'text-blue-300',
-  },
-];
-
-/* ── Feature pills for right-side panel ── */
-const FEATURES = [
-  { icon: Zap,         label: '<80ms latency',
-    light: 'bg-yellow-50 border-yellow-200 text-yellow-700',  dark: 'bg-yellow-900/20 border-yellow-700/30 text-yellow-300' },
-  { icon: Shield,      label: 'E2E encrypted',
-    light: 'bg-emerald-50 border-emerald-200 text-emerald-700', dark: 'bg-emerald-900/20 border-emerald-700/30 text-emerald-300' },
-  { icon: Users,       label: 'Up to 100 users',
-    light: 'bg-purple-50 border-purple-200 text-purple-700', dark: 'bg-purple-900/20 border-purple-700/30 text-purple-300' },
-  { icon: MonitorPlay, label: 'Screen sharing',
-    light: 'bg-orange-50 border-orange-200 text-orange-700', dark: 'bg-orange-900/20 border-orange-700/30 text-orange-300' },
-  { icon: Video,       label: 'HD video',
-    light: 'bg-blue-50 border-blue-200 text-blue-700', dark: 'bg-blue-900/20 border-blue-700/30 text-blue-300' },
-];
+import { QUICK_ACTIONS, FEATURES } from '../lib/homeData';
+import QuickActionCard from '../components/dashboard/QuickActionCard';
 
 /* ── Animation helpers ── */
 const container = {
@@ -419,46 +349,13 @@ export default function HomeComponent() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {QUICK_ACTIONS.map((action, i) => (
-                  <motion.button
+                {QUICK_ACTIONS.map((action) => (
+                  <QuickActionCard
                     key={action.id}
-                    variants={fadeUp}
-                    whileHover={{ y: -3, scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
+                    action={action}
+                    dark={dark}
                     onClick={() => handleQuickAction(action.id)}
-                    className={`group relative flex flex-col gap-4 p-5 rounded-2xl border text-left transition-all overflow-hidden
-                      ${dark
-                        ? `${action.bgDark} border-white/[0.06] hover:border-white/[0.12]`
-                        : `${action.bgLight} border-gray-200/50 hover:border-gray-300/80`
-                      }
-                      hover:shadow-xl hover:${action.glow}
-                    `}
-                  >
-                    {/* Hover gradient overlay */}
-                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-[0.04] transition-opacity duration-300`} />
-
-                    {/* Icon */}
-                    <div className="relative z-10 flex items-center justify-between w-full">
-                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.gradient} flex items-center justify-center shadow-lg ${action.glow} group-hover:scale-110 transition-transform duration-300`}>
-                        <action.icon className="w-5 h-5 text-white" />
-                      </div>
-                      <ArrowRight className={`w-4 h-4 opacity-0 -translate-x-2 group-hover:opacity-60 group-hover:translate-x-0 transition-all duration-300 ${dark ? 'text-white' : 'text-gray-400'}`} />
-                    </div>
-
-                    {/* Label & description */}
-                    <div className="relative z-10 flex flex-col gap-1">
-                      <span className={`text-sm font-bold tracking-tight ${dark ? action.accentDark : action.accentLight}`}>
-                        {action.id === 'share-link' && linkCopied ? (
-                          <span className="flex items-center gap-1.5">
-                            <Check className="w-3.5 h-3.5 text-emerald-500" /> Copied!
-                          </span>
-                        ) : action.label}
-                      </span>
-                      <span className={`text-[11px] leading-snug ${dark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {action.desc}
-                      </span>
-                    </div>
-                  </motion.button>
+                  />
                 ))}
               </div>
             </motion.div>
