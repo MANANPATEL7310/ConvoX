@@ -4,7 +4,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button';
 import { useTheme } from '../contexts/ThemeContext';
 import ThemeToggle from '../components/ThemeToggle';
-import axios from 'axios';
+import { usePublicFeedbackQuery } from '../hooks/api/useFeedback';
 import { useAuth } from '../contexts/useAuth';
 import UserDropdown from '../components/UserDropdown';
 import {
@@ -240,22 +240,8 @@ export default function LandingPage() {
   const { dark, toggle } = useTheme();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [realFeedback, setRealFeedback] = useState([]);
-
-  useEffect(() => {
-    const fetchFeedback = async () => {
-      try {
-        const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8000";
-        const response = await axios.get(`${SERVER_URL}/api/v1/feedback/public`);
-        if (response.data.success && response.data.feedbacks) {
-          setRealFeedback(response.data.feedbacks);
-        }
-      } catch (err) {
-        console.error("Failed to load feedback:", err);
-      }
-    };
-    fetchFeedback();
-  }, []);
+  const { data: feedbackData } = usePublicFeedbackQuery();
+  const realFeedback = feedbackData?.success ? feedbackData.feedbacks : [];
 
   const displayTestimonials = realFeedback.length > 0 ? realFeedback.map(f => ({
     name: f.name,

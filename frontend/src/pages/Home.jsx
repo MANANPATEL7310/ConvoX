@@ -17,9 +17,8 @@ import ScheduleMeetingCard from '../components/ScheduleMeetingCard';
 import ConfirmCancelModal from '../components/ConfirmCancelModal';
 import UserDropdown from '../components/UserDropdown';
 import { toast } from 'sonner';
-import axios from 'axios';
-
-const server_url = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
+import { useScheduledMeetingsQuery, useDeleteScheduledMeetingMutation } from '../hooks/api/useMeetings';
+import { useNotificationsQuery, useMarkNotificationsReadMutation } from '../hooks/api/useProfile';
 
 /* ═══════════════════════════════════════════════════════════
    QUICK ACTIONS — each becomes a real interactive component
@@ -113,13 +112,19 @@ export default function HomeComponent() {
   // Share card state: { code, url } when a meeting is generated
   const [shareState, setShareState] = useState(null);
   const [scheduleState, setScheduleState] = useState(null);
-  const [scheduledMeetings, setScheduledMeetings] = useState([]);
-  const [scheduleLoading, setScheduleLoading] = useState(false);
   const [copiedScheduleId, setCopiedScheduleId] = useState(null);
-  const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [cancelState, setCancelState] = useState(null);
-  const [cancelLoading, setCancelLoading] = useState(false);
+
+  const { data: scheduledMeetingsRes, isLoading: scheduleLoading } = useScheduledMeetingsQuery();
+  const scheduledMeetings = Array.isArray(scheduledMeetingsRes) ? scheduledMeetingsRes : [];
+
+  const { data: notificationsRes } = useNotificationsQuery();
+  const notifications = Array.isArray(notificationsRes) ? notificationsRes : [];
+
+  const markReadMutation = useMarkNotificationsReadMutation();
+  const deleteMeetingMutation = useDeleteScheduledMeetingMutation();
+  const cancelLoading = deleteMeetingMutation.isPending;
   const { user, logout, addToUserHistory } = useAuth();
   const { dark } = useTheme();
 
@@ -156,71 +161,25 @@ export default function HomeComponent() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    const fetchScheduled = async () => {
-      setScheduleLoading(true);
-      try {
-        const { data } = await axios.get(`${server_url}/api/v1/schedule`, { withCredentials: true });
-        if (active) setScheduledMeetings(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error('Failed to load schedules:', err);
-      } finally {
-        if (active) setScheduleLoading(false);
-      }
-    };
-    fetchScheduled();
-    return () => { active = false; };
-  }, [user]);
 
-  const loadNotifications = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data } = await axios.get(`${server_url}/api/v1/notifications`, { withCredentials: true });
-      setNotifications(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load notifications:', err);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    const tick = async () => {
-      if (!active) return;
-      await loadNotifications();
-    };
-    tick();
-    const interval = setInterval(tick, 30000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
-  }, [user, loadNotifications]);
 
   const unreadCount = useMemo(() => notifications.filter(n => !n.readAt).length, [notifications]);
 
   const markAllRead = useCallback(async () => {
     try {
-      await axios.post(`${server_url}/api/v1/notifications/mark-read`, {}, { withCredentials: true });
-      setNotifications(prev => prev.map(n => ({ ...n, readAt: n.readAt || new Date().toISOString() })));
+      await markReadMutation.mutateAsync();
     } catch (err) {
       console.error('Failed to mark notifications read:', err);
     }
-  }, []);
+  }, [markReadMutation]);
 
   const upcomingMeetings = useMemo(() => {
     const list = scheduledMeetings.filter(m => m.status === 'scheduled');
     return list.sort((a, b) => new Date(a.scheduledFor) - new Date(b.scheduledFor));
   }, [scheduledMeetings]);
 
-  const handleScheduled = useCallback((meeting) => {
-    if (!meeting?._id) return;
-    setScheduledMeetings(prev => {
-      const next = [meeting, ...prev.filter(m => m._id !== meeting._id)];
-      return next.sort((a, b) => new Date(a.scheduledFor) - new Date(b.scheduledFor));
-    });
+  const handleScheduled = useCallback(() => {
+    // React Query caches invalidate globally, automatically refetching the meeting list.
   }, []);
 
   const handleCopyScheduleLink = useCallback(async (meeting) => {
@@ -236,24 +195,15 @@ export default function HomeComponent() {
 
   const handleCancelMeeting = useCallback(async (reason = '') => {
     if (!cancelState?.meeting) return;
-    setCancelLoading(true);
     try {
-      await axios.delete(`${server_url}/api/v1/schedule/${cancelState.meeting._id}`, {
-        withCredentials: true,
-        data: { reason },
-      });
-      setScheduledMeetings(prev => prev.map(m => (
-        m._id === cancelState.meeting._id ? { ...m, status: 'cancelled' } : m
-      )));
+      await deleteMeetingMutation.mutateAsync({ id: cancelState.meeting._id, reason });
       toast.success('Meeting cancelled');
       setCancelState(null);
     } catch (err) {
       console.error('Cancel meeting failed:', err);
       toast.error('Failed to cancel meeting');
-    } finally {
-      setCancelLoading(false);
     }
-  }, [cancelState]);
+  }, [cancelState, deleteMeetingMutation]);
 
   const handleQuickAction = useCallback(async (id) => {
     switch (id) {

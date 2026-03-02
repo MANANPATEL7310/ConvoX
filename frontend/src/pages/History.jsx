@@ -1,6 +1,6 @@
-import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { AuthContext } from '../contexts/AuthContext';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMeetingHistoryQuery } from '../hooks/api/useMeetings';
 import { motion } from 'framer-motion';
 import { Home, Video, Calendar, Clock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,14 +24,11 @@ const formatDate = dateStr => {
 };
 
 export default function History() {
-  const { getHistoryOfUser } = useContext(AuthContext);
   const navigate = useNavigate();
   const { dark } = useTheme();
-  const [meetings, setMeetings] = useState([]);
-
-  useEffect(() => {
-    getHistoryOfUser().then(setMeetings).catch(() => {});
-  }, [getHistoryOfUser]);
+  
+  const { data: meetingsRes } = useMeetingHistoryQuery();
+  const meetings = Array.isArray(meetingsRes) ? meetingsRes : [];
 
   const [weekAgo] = useState(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   const thisWeekCount = useMemo(

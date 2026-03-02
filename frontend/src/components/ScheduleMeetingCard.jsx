@@ -5,9 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
-import axios from 'axios';
-
-const server_url = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
+import { useCreateScheduledMeetingMutation, useUpdateScheduledMeetingMutation } from '../hooks/api/useMeetings';
 
 const IST_OFFSET_MINUTES = 330;
 
@@ -46,7 +44,11 @@ export default function ScheduleMeetingCard({
 }) {
   const { dark } = useTheme();
   const [copied, setCopied] = useState(false);
-  const [sending, setSending] = useState(false);
+  
+  const createMeetingMutation = useCreateScheduledMeetingMutation();
+  const updateMeetingMutation = useUpdateScheduledMeetingMutation();
+  const sending = createMeetingMutation.isPending || updateMeetingMutation.isPending;
+
   const [title, setTitle] = useState(() => {
     if (initialTitle) return initialTitle;
     return senderName ? `${senderName}'s meeting` : '';
@@ -130,7 +132,6 @@ export default function ScheduleMeetingCard({
       return;
     }
 
-    setSending(true);
     try {
       const payload = {
         title: title.trim(),
@@ -141,21 +142,14 @@ export default function ScheduleMeetingCard({
       };
 
       if (mode === 'edit' && meetingId) {
-        const { data } = await axios.put(`${server_url}/api/v1/schedule/${meetingId}`, payload, {
-          withCredentials: true,
-        });
+        const data = await updateMeetingMutation.mutateAsync({ id: meetingId, payload });
         toast.success('Meeting updated.');
         onScheduled?.(data.meeting);
       } else {
-        const createPayload = {
-          ...payload,
-          meetingCode,
-          meetingUrl,
-        };
-        const { data } = await axios.post(`${server_url}/api/v1/schedule`, createPayload, {
-          withCredentials: true,
-        });
+        const createPayload = { ...payload, meetingCode, meetingUrl };
+        const data = await createMeetingMutation.mutateAsync(createPayload);
         toast.success('Meeting scheduled. Reminders will be sent by email.');
+        // React Query invalidates caching natively, we retain onScheduled to close UX seamlessly
         onScheduled?.(data.meeting);
       }
 
@@ -163,10 +157,8 @@ export default function ScheduleMeetingCard({
     } catch (err) {
       console.error('Schedule meeting error:', err);
       toast.error('Failed to schedule meeting. Please try again.');
-    } finally {
-      setSending(false);
     }
-  }, [scheduledFor, hostEmail, title, meetingCode, meetingUrl, timezone, emails, onScheduled, onClose]);
+  }, [scheduledFor, hostEmail, title, meetingCode, meetingUrl, timezone, emails, onScheduled, onClose, mode, meetingId, updateMeetingMutation, createMeetingMutation]);
 
   return (
     <AnimatePresence>

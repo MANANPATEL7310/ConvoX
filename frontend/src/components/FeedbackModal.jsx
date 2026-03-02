@@ -3,17 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Star, MessageSquarePlus, X } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Button } from './ui/button';
-import axios from 'axios';
 import { toast } from 'sonner';
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8000";
+import { useSubmitFeedbackMutation } from '../hooks/api/useFeedback';
 
 export default function FeedbackModal({ isOpen, onClose }) {
   const { dark } = useTheme();
   const [rating, setRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitFeedbackMutation = useSubmitFeedbackMutation();
+  const isSubmitting = submitFeedbackMutation.isPending;
 
   if (!isOpen) return null;
 
@@ -23,20 +22,13 @@ export default function FeedbackModal({ isOpen, onClose }) {
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      await axios.post(
-        `${SERVER_URL}/api/v1/feedback`,
-        { rating, comment },
-        { withCredentials: true }
-      );
+      await submitFeedbackMutation.mutateAsync({ rating, comment });
       toast.success("Thank you for your feedback!");
       onClose(); // Proceed with navigation/close
     } catch (err) {
       console.error("Feedback submission error:", err);
       toast.error("Failed to submit feedback. Try again later.");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
