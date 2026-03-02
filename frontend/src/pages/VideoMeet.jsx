@@ -69,7 +69,7 @@ export default function VideoMeetComponent() {
     socketRef, localStreamRef, socketIdRef, remoteStreams, userNames, messages, 
     showModal, setModal, newMessages, setNewMessages, videoEnabled, audioEnabled, 
     screenSharing, lobbyUsername, setLobbyUsername, isConnected, activeSharingId, 
-    isHost, showShareCard, setShowShareCard, videoQuality, setVideoQuality, 
+    isHost, showShareCard, setShowShareCard, videoQuality, setVideoQuality, mediaStates,
     reactions, showReactionPicker, setShowReactionPicker, raisedHands, captionsEnabled, 
     setCaptionsEnabled, captionLines, liveCaption, isRecording, recordingDuration, 
     pinnedId, setPinnedId, whiteboardVisible, setWhiteboardVisible, whiteboardPresenter, 
@@ -79,7 +79,7 @@ export default function VideoMeetComponent() {
     toggleVideo, toggleAudio, toggleScreenShare, sendReaction, toggleRaiseHand, 
     toggleRecording, handleAdmitUser, handleRejectUser, handleMuteUser, handleUnmuteUser, 
     handleVideoOffUser, handleVideoOnUser, handleMuteAll, handleVideoOffAll, openChat, 
-    connect, endCall, handleFeedbackClose
+    connect, endCall, handleFeedbackClose, prejoinMediaRef
   } = useMeetingEngine(localVideoRef);
 
   // ── Pre-join card (shown to everyone before entering) ──
