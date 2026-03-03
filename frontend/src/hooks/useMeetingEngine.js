@@ -616,7 +616,11 @@ export function useMeetingEngine(localVideoRef) {
         }));
       });
 
-      socket.on('reaction', ({ emoji }) => { if (emoji) addReaction(emoji); });
+      socket.on('reaction', ({ emoji, socketId }) => {
+        if (!emoji) return;
+        if (socketId && socketId === socketIdRef.current) return;
+        addReaction(emoji);
+      });
       
       socket.on('raise-hand', ({ socketId, username: raisedBy, raised }) => {
         if (!socketId) return;

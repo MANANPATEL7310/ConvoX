@@ -299,7 +299,7 @@ export default function SFURoom({
         </div>
 
         {/* Side control bar — secondary actions */}
-        <div className="absolute top-4 right-2 sm:right-4 md:right-[18px] md:top-1/2 md:-translate-y-1/2 flex flex-row md:flex-col gap-2 items-center z-20 bg-gray-900/90 backdrop-blur-md rounded-2xl py-1.5 px-2 md:py-2.5 md:px-2 border border-white/10 shadow-xl max-w-[95vw] overflow-x-auto">
+        <div className="absolute top-4 right-2 sm:right-4 md:right-[18px] md:top-1/2 md:-translate-y-1/2 flex flex-row md:flex-col gap-2 items-center z-20 bg-gray-900/90 backdrop-blur-md rounded-2xl py-1.5 px-2 md:py-2.5 md:px-2 border border-white/10 shadow-xl max-w-[95vw] overflow-visible">
           {isHost && (
             <Tooltip title={isRecording ? 'Stop recording' : 'Start recording'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
               <IconButton

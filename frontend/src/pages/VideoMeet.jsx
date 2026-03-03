@@ -30,6 +30,7 @@ import MediaControls from '../components/meeting/MediaControls';
 import VideoGrid from '../components/meeting/VideoGrid';
 import MeetingCaptions from '../components/meeting/MeetingCaptions';
 import { useMeetingEngine } from '../hooks/useMeetingEngine';
+import styles from '../styles/videoComponent.module.css';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8000";
 
