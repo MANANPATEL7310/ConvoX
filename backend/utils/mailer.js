@@ -1,39 +1,37 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-let cachedTransporter = null;
+let resendClient = null;
 
-const getTransporter = () => {
-  if (cachedTransporter) return cachedTransporter;
+const getResend = () => {
+  if (resendClient) return resendClient;
 
-  const user = process.env.SMTP_EMAIL;
-  const pass = process.env.SMTP_PASSWORD;
+  const apiKey = process.env.RESEND_API_KEY;
 
-  if (!user || !pass) {
-    console.error("[Email] FATAL: SMTP_EMAIL or SMTP_PASSWORD is not set in environment variables!");
-    throw new Error("SMTP_EMAIL and SMTP_PASSWORD must be set to send emails.");
+  if (!apiKey) {
+    console.error("[Email] FATAL: RESEND_API_KEY is not set in environment variables!");
+    throw new Error("RESEND_API_KEY must be set to send emails.");
   }
 
-  console.log(`[Email] Transporter initialized for: ${user}`);
-
-  cachedTransporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,       // STARTTLS (not SSL port 465 which Render blocks over IPv6)
-    family: 4,           // Force IPv4 — Render free tier blocks IPv6 outbound
-    auth: { user, pass },
-  });
-
-  return cachedTransporter;
+  console.log("[Email] Resend client initialized.");
+  resendClient = new Resend(apiKey);
+  return resendClient;
 };
 
 export const sendEmail = async ({ to, subject, html }) => {
-  const transporter = getTransporter();
-  const info = await transporter.sendMail({
-    from: `"ConvoX" <${process.env.SMTP_EMAIL}>`,
+  const resend = getResend();
+
+  const { data, error } = await resend.emails.send({
+    from: "ConvoX <onboarding@resend.dev>", // Use your verified domain once set up
     to,
     subject,
     html,
   });
-  console.log(`[Email] ✅ Sent to ${to} | MessageId: ${info.messageId}`);
-  return info;
+
+  if (error) {
+    console.error(`[Email] ❌ Failed to send to ${to}:`, error.message);
+    throw new Error(error.message);
+  }
+
+  console.log(`[Email] ✅ Sent to ${to} | MessageId: ${data.id}`);
+  return data;
 };
