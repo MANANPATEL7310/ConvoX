@@ -24,7 +24,7 @@ import SubtitlesOffIcon from '@mui/icons-material/SubtitlesOff';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { Loader2 } from 'lucide-react';
 
-const BACKEND_URL = 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
 
 /* ── Pulsing green ring shown on a speaking participant tile ── */
 const speakingRingStyle = {

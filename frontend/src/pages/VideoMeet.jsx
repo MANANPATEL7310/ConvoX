@@ -31,7 +31,7 @@ import VideoGrid from '../components/meeting/VideoGrid';
 import MeetingCaptions from '../components/meeting/MeetingCaptions';
 import { useMeetingEngine } from '../hooks/useMeetingEngine';
 
-const SERVER_URL = "http://localhost:8000";
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:8000";
 
 const STUN_URLS = [
   "stun:stun.l.google.com:19302",

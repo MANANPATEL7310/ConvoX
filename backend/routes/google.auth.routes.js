@@ -26,7 +26,7 @@ function ensureStrategy() {
       {
         clientID,
         clientSecret,
-        callbackURL: `http://localhost:${process.env.PORT || 8000}/api/v1/auth/google/callback`,
+        callbackURL: `${process.env.SERVER_URL || `http://localhost:${process.env.PORT || 8000}`}/api/v1/auth/google/callback`,
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
