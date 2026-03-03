@@ -18,9 +18,16 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const normalizeEmail = (value) => value?.trim().toLowerCase();
 
+// Helper: fire-and-forget email — never throws, just logs
+const sendEmailSafe = (opts) => {
+  sendEmail(opts).catch((err) =>
+    console.error(`[Email] Failed to send to ${opts.to}:`, err.message)
+  );
+};
+
 router.post("/", verifyToken, async (req, res) => {
   try {
-  const {
+    const {
       title,
       meetingCode,
       meetingUrl,
@@ -97,17 +104,21 @@ router.post("/", verifyToken, async (req, res) => {
       meetingTitle: meeting.title,
       scheduledFor: meeting.scheduledFor,
       type: "meeting-scheduled",
-      message: `Meeting \"${meetingTitle}\" scheduled successfully.`,
+      message: `Meeting "${meetingTitle}" scheduled successfully.`,
     });
 
+    // Respond immediately — emails are sent asynchronously
+    res.status(201).json({ meeting });
+
+    // Fire-and-forget emails (won't block or error the response)
     const confirmationHtml = renderScheduleConfirmation({
       hostName: meeting.hostName,
-      meetingTitle: meetingTitle,
+      meetingTitle,
       meetingUrl: meeting.meetingUrl,
       scheduledFor: meeting.scheduledFor,
     });
 
-    await sendEmail({
+    sendEmailSafe({
       to: hostEmailNormalized,
       subject: `Meeting scheduled: ${meetingTitle}`,
       html: confirmationHtml,
@@ -117,21 +128,19 @@ router.post("/", verifyToken, async (req, res) => {
     if (attendeeEmails.length > 0) {
       const inviteHtml = renderScheduleInvite({
         hostName: meeting.hostName,
-        meetingTitle: meetingTitle,
+        meetingTitle,
         meetingUrl: meeting.meetingUrl,
         scheduledFor: meeting.scheduledFor,
       });
 
       for (const attendeeEmail of attendeeEmails) {
-        await sendEmail({
+        sendEmailSafe({
           to: attendeeEmail,
           subject: `Invitation: ${meetingTitle}`,
           html: inviteHtml,
         });
       }
     }
-
-    return res.status(201).json({ meeting });
   } catch (error) {
     console.error("Schedule create error:", error);
     return res.status(500).json({ message: "Failed to schedule meeting." });
@@ -215,8 +224,11 @@ router.put("/:id", verifyToken, async (req, res) => {
       meetingTitle: meeting.title,
       scheduledFor: meeting.scheduledFor,
       type: "meeting-updated",
-      message: `Meeting \"${meeting.title}\" was updated.`,
+      message: `Meeting "${meeting.title}" was updated.`,
     });
+
+    // Respond immediately — emails are sent asynchronously
+    res.json({ meeting });
 
     const hostUpdateHtml = renderScheduleUpdatedHost({
       hostName: meeting.hostName,
@@ -225,7 +237,7 @@ router.put("/:id", verifyToken, async (req, res) => {
       scheduledFor: meeting.scheduledFor,
     });
 
-    await sendEmail({
+    sendEmailSafe({
       to: meeting.hostEmail,
       subject: `Updated: ${meeting.title}`,
       html: hostUpdateHtml,
@@ -240,15 +252,13 @@ router.put("/:id", verifyToken, async (req, res) => {
       });
 
       for (const attendeeEmail of meeting.attendees) {
-        await sendEmail({
+        sendEmailSafe({
           to: attendeeEmail,
           subject: `Updated invite: ${meeting.title}`,
           html: attendeeUpdateHtml,
         });
       }
     }
-
-    return res.json({ meeting });
   } catch (error) {
     console.error("Schedule update error:", error);
     return res.status(500).json({ message: "Failed to update meeting." });
@@ -282,9 +292,12 @@ router.delete("/:id", verifyToken, async (req, res) => {
       scheduledFor: meeting.scheduledFor,
       type: "meeting-cancelled",
       message: cancelReason
-        ? `Meeting \"${meeting.title}\" was cancelled. Reason: ${cancelReason}`
-        : `Meeting \"${meeting.title}\" was cancelled.`,
+        ? `Meeting "${meeting.title}" was cancelled. Reason: ${cancelReason}`
+        : `Meeting "${meeting.title}" was cancelled.`,
     });
+
+    // Respond immediately — emails are sent asynchronously
+    res.json({ meeting });
 
     const hostCancelHtml = renderScheduleCancelledHost({
       hostName: meeting.hostName,
@@ -293,7 +306,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
       reason: cancelReason,
     });
 
-    await sendEmail({
+    sendEmailSafe({
       to: meeting.hostEmail,
       subject: `Cancelled: ${meeting.title}`,
       html: hostCancelHtml,
@@ -308,15 +321,13 @@ router.delete("/:id", verifyToken, async (req, res) => {
       });
 
       for (const attendeeEmail of meeting.attendees) {
-        await sendEmail({
+        sendEmailSafe({
           to: attendeeEmail,
           subject: `Cancelled: ${meeting.title}`,
           html: attendeeCancelHtml,
         });
       }
     }
-
-    return res.json({ meeting });
   } catch (error) {
     console.error("Schedule cancel error:", error);
     return res.status(500).json({ message: "Failed to cancel meeting." });
