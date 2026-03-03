@@ -57,7 +57,7 @@ export default function History() {
     <PageWrapper>
 
       {/* ════════════ NAV ════════════ */}
-      <nav className={`relative z-10 backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
+      <nav className={`relative z-20 backdrop-blur-md border-b sticky top-0 transition-colors duration-300 ${
         dark ? 'bg-gray-900/80 border-white/10' : 'bg-white/70 border-gray-200/60'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
