@@ -93,7 +93,7 @@ export default function ShareMeetingCard({ meetingUrl, senderName, onClose, onJo
       setEmails(failedEmails);
     } catch (err) {
       console.error('Send invite error:', err);
-      toast.error('Failed to send invites. Check SMTP configuration.');
+      toast.error('Failed to send invites. Check email configuration.');
     }
   }, [emails, meetingUrl, senderName, sendInvitesMutation]);
 
