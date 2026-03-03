@@ -252,10 +252,11 @@ export default function SFURoom({
         {/* Bottom control bar — primary actions only */}
         <div style={{
           position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-          display: 'flex', alignItems: 'center', gap: 8, zIndex: 20,
+          display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 20,
           background: 'rgba(17,24,39,0.9)', backdropFilter: 'blur(12px)',
-          borderRadius: 999, padding: '6px 16px',
+          borderRadius: 30, padding: '6px 16px',
           border: '1px solid rgba(255,255,255,0.08)',
+          width: '95%', maxWidth: 500
         }}>
           <ControlBar
             style={{ background: 'transparent', border: 'none', padding: 0 }}
@@ -298,22 +299,7 @@ export default function SFURoom({
         </div>
 
         {/* Side control bar — secondary actions */}
-        <div style={{
-          position: 'absolute',
-          right: 18,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          alignItems: 'center',
-          zIndex: 20,
-          background: 'rgba(17,24,39,0.9)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: 16,
-          padding: '10px 8px',
-          border: '1px solid rgba(255,255,255,0.08)',
-        }}>
+        <div className="absolute top-4 right-2 sm:right-4 md:right-[18px] md:top-1/2 md:-translate-y-1/2 flex flex-row md:flex-col gap-2 items-center z-20 bg-gray-900/90 backdrop-blur-md rounded-2xl py-1.5 px-2 md:py-2.5 md:px-2 border border-white/10 shadow-xl max-w-[95vw] overflow-x-auto">
           {isHost && (
             <Tooltip title={isRecording ? 'Stop recording' : 'Start recording'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
               <IconButton

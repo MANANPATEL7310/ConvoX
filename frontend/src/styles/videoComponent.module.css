@@ -582,26 +582,14 @@
 /* ── Mobile Responsive ── */
 
 @media (max-width: 768px) {
-  .conferenceView.twoUsers {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .conferenceView.threeUsers {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .conferenceView.fourUsers {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .conferenceView.multipleUsers {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1px;
-    padding: 1px;
+    gap: 2px;
+    padding: 2px;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .conferenceView.twoUsers {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 1fr;
@@ -609,74 +597,21 @@
 
   .conferenceView.threeUsers {
     grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
   }
 
   .conferenceView.fourUsers {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .conferenceView.multipleUsers {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1px;
-    padding: 1px;
-  }
-}
-
-@media (max-width: 480px) {
-  .conferenceView.twoUsers {
-    grid-template-columns: 1fr;
     grid-template-rows: 1fr 1fr;
   }
 
-  .conferenceView.threeUsers {
-    grid-template-columns: 1fr;
-  }
-
-  .conferenceView.fourUsers {
-    grid-template-columns: 1fr;
-  }
-
   .conferenceView.multipleUsers {
     grid-template-columns: 1fr;
-    gap: 1px;
-    padding: 1px;
-  }
-}
-
-/* Local video responsive sizing */
-@media (max-width: 768px) {
-  .local-video-corner {
-    width: 120px !important;
-    height: 90px !important;
-    top: 8px !important;
-    right: 8px !important;
-  }
-}
-
-@media (max-width: 640px) {
-  .local-video-corner {
-    width: 100px !important;
-    height: 75px !important;
-    top: 6px !important;
-    right: 6px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .local-video-corner {
-    width: 80px !important;
-    height: 60px !important;
-    top: 4px !important;
-    right: 4px !important;
-  }
-}
-
-@media (max-width: 380px) {
-  .local-video-corner {
-    width: 64px !important;
-    height: 48px !important;
-    top: 2px !important;
-    right: 2px !important;
+    grid-auto-rows: 300px;
+    gap: 4px;
+    padding: 4px;
+    overflow-y: auto;
+    align-content: start;
   }
 }
 
