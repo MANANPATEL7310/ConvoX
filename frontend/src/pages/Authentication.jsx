@@ -181,23 +181,11 @@ const Authentication = () => {
                     key={tabLabel}
                     type="button"
                     onClick={() => { setIsLogin(isLoginTab); setInputValue({ password: '', username: '', name: '', email: '' }); setShowPassword(false); }}
-                    style={{
-                      flex: 1,
-                      padding: '10px 0',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      borderRadius: 10,
-                      border: 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      background: isLogin === isLoginTab
-                        ? 'linear-gradient(135deg, #6366f1, #9333ea)'
-                        : 'transparent',
-                      color: isLogin === isLoginTab
-                        ? '#fff'
-                        : dark ? '#9ca3af' : '#6b7280',
-                      boxShadow: isLogin === isLoginTab ? '0 4px 12px rgba(99,102,241,0.3)' : 'none',
-                    }}
+                    className={`flex-1 py-2.5 text-sm font-semibold rounded-[10px] transition-all duration-200 ${
+                      isLogin === isLoginTab
+                        ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)]'
+                        : `bg-transparent ${dark ? 'text-gray-400' : 'text-gray-500'}`
+                    }`}
                   >
                     {tabLabel}
                   </button>
@@ -274,7 +262,7 @@ const Authentication = () => {
                     </label>
                     {isLogin && (
                       <span
-                        style={{ fontSize: 11, color: '#6366f1', cursor: 'pointer', fontWeight: 600 }}
+                        className="text-[11px] text-indigo-500 font-semibold cursor-pointer"
                         onClick={() => toast.info('Forgot password coming soon!')}
                       >
                         Forgot password?
@@ -288,22 +276,11 @@ const Authentication = () => {
                       onFocus={() => setFocusedField('password')} onBlur={() => setFocusedField(null)}
                       required placeholder="Enter your password"
                       className={`${inputBase} pl-10 pr-12 py-3 ${inputTheme}`} />
-                    {/* Eye toggle — inline style to prevent MUI override */}
                     <span
                       onClick={() => setShowPassword(v => !v)}
-                      style={{
-                        position: 'absolute',
-                        right: 14,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        cursor: 'pointer',
-                        color: dark ? '#6b7280' : '#9ca3af',
-                        display: 'flex',
-                        alignItems: 'center',
-                        lineHeight: 1,
-                      }}
+                      className={`absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center cursor-pointer leading-none ${dark ? 'text-gray-500' : 'text-gray-400'}`}
                     >
-                      {showPassword ? <EyeOff style={{ width: 16, height: 16 }} /> : <Eye style={{ width: 16, height: 16 }} />}
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </span>
                   </div>
 
@@ -329,38 +306,20 @@ const Authentication = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  style={{
-                    width: '100%',
-                    padding: '14px 0',
-                    marginTop: 8,
-                    borderRadius: 12,
-                    border: 'none',
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.7 : 1,
-                    background: 'linear-gradient(135deg, #6366f1, #9333ea)',
-                    color: '#fff',
-                    fontWeight: 700,
-                    fontSize: 14,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    boxShadow: '0 8px 20px rgba(99,102,241,0.3)',
-                    transition: 'all 0.2s',
-                  }}
+                  className={`w-full py-3.5 mt-2 rounded-xl flex items-center justify-center gap-2 font-bold text-sm text-white bg-gradient-to-br from-indigo-500 to-purple-600 shadow-[0_8px_20px_rgba(99,102,241,0.3)] transition-all duration-200 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-[1.02] cursor-pointer'}`}
                 >
                   {loading ? (
                     <>
-                      <svg className="animate-spin" style={{ width: 16, height: 16 }} fill="none" viewBox="0 0 24 24">
-                        <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                       {isLogin ? 'Signing in…' : 'Creating account…'}
                     </>
                   ) : (
                     <>
                       {isLogin ? 'Sign In' : 'Create Account'}
-                      <ArrowRight style={{ width: 16, height: 16 }} />
+                      <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
@@ -376,25 +335,13 @@ const Authentication = () => {
                 <button
                   type="button"
                   onClick={() => { window.location.href = `${BACKEND_URL}/api/v1/auth/google`; }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 0',
-                    borderRadius: 12,
-                    border: dark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e5e7eb',
-                    background: dark ? 'rgba(255,255,255,0.04)' : '#fff',
-                    color: dark ? '#d1d5db' : '#374151',
-                    fontWeight: 600,
-                    fontSize: 14,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 10,
-                    cursor: 'pointer',
-                    boxShadow: dark ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
-                    transition: 'all 0.2s',
-                  }}
+                  className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2.5 transition-all duration-200 border ${
+                    dark 
+                      ? 'border-white/[0.08] bg-white/[0.04] text-gray-300 hover:bg-white/[0.08]' 
+                      : 'border-gray-200 bg-white text-gray-700 shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:bg-gray-50'
+                  }`}
                 >
-                  <svg style={{ width: 18, height: 18 }} viewBox="0 0 24 24">
+                  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -409,7 +356,7 @@ const Authentication = () => {
                 {isLogin ? "Don't have an account? " : 'Already have an account? '}
                 <span
                   onClick={() => { setIsLogin(!isLogin); setInputValue({ password: '', username: '', name: '' }); setShowPassword(false); }}
-                  style={{ color: '#6366f1', fontWeight: 600, cursor: 'pointer' }}
+                  className="text-indigo-500 font-semibold cursor-pointer hover:underline"
                 >
                   {isLogin ? 'Sign up for free' : 'Sign in'}
                 </span>

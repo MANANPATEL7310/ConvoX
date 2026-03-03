@@ -131,8 +131,7 @@ export default function VideoMeetComponent() {
                 variant="outlined"
                 className="w-full"
                 InputProps={{
-                  className: "text-lg",
-                  style: { borderRadius: '12px' }
+                  className: "text-lg rounded-xl"
                 }}
               />
               
@@ -140,8 +139,7 @@ export default function VideoMeetComponent() {
                 variant="contained" 
                 onClick={connect}
                 fullWidth
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 text-lg font-semibold hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-                style={{ borderRadius: '12px', textTransform: 'none' }}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 text-lg font-semibold hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 rounded-xl normal-case"
               >
                 Connect to Meeting
               </Button>
@@ -170,14 +168,12 @@ export default function VideoMeetComponent() {
 
       {/* ── P2P → SFU upgrade overlay ── */}
       {upgrading && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 100,
-          background: 'rgba(9,9,18,0.85)', backdropFilter: 'blur(8px)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
-        }}>
-          <div style={{ width: 48, height: 48, border: '3px solid #6366f1', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <p style={{ color: '#a5b4fc', fontWeight: 600, fontSize: 16 }}>Upgrading to HD call quality…</p>
-          <p style={{ color: '#6b7280', fontSize: 13 }}>Reconnecting {participantCount} participants</p>
+        <div
+          className="absolute inset-0 z-[100] bg-[#090912]/85 backdrop-blur-md flex flex-col items-center justify-center gap-4"
+        >
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-indigo-300 font-semibold text-base">Upgrading to HD call quality…</p>
+          <p className="text-gray-500 text-[13px]">Reconnecting {participantCount} participants</p>
         </div>
       )}
 
@@ -198,25 +194,9 @@ export default function VideoMeetComponent() {
       {/* ── Recording indicator ── */}
       {isRecording && (
         <div
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            zIndex: 40,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 12px',
-            borderRadius: 999,
-            background: 'rgba(15,23,42,0.75)',
-            border: '1px solid rgba(239,68,68,0.5)',
-            color: '#fecaca',
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.04em',
-          }}
+          className="absolute top-4 left-4 z-40 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/75 border border-red-500/50 text-red-200 text-xs font-bold tracking-widest"
         >
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 8px rgba(239,68,68,0.8)' }} />
+          <span className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
           REC {formatDuration(recordingDuration)}
         </div>
       )}
