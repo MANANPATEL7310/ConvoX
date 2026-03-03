@@ -71,7 +71,7 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  <Link to="/auth">
+                  <Link to="/auth" className="hidden sm:block">
                     <button className={`h-9 px-[18px] rounded-[10px] font-semibold text-sm transition-all duration-180 whitespace-nowrap ${
                       dark 
                         ? 'border-[1.5px] border-white/14 bg-indigo-500/12 text-indigo-300 hover:bg-indigo-500/22' 

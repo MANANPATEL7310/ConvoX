@@ -170,7 +170,7 @@ const Authentication = () => {
             </div>
 
             {/* ══ RIGHT: Form panel ══ */}
-            <div className="flex flex-col justify-center p-8 sm:p-10">
+            <div className="flex flex-col justify-center p-5 sm:p-10">
 
               {/* Tab switcher */}
               <div className={`flex rounded-xl p-1 mb-8 gap-1 ${
