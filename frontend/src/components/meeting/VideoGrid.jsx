@@ -265,7 +265,7 @@ export default function VideoGrid({
 
           {/* Local Video corner (shown only in grid mode) */}
           <div
-            className="local-video-corner absolute top-4 right-4 w-48 h-36 md:w-64 md:h-48 lg:w-80 lg:h-60 z-50 rounded-lg overflow-hidden shadow-2xl border-2 border-white border-opacity-20"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 w-24 h-16 sm:w-36 sm:h-28 md:w-48 md:h-36 lg:w-64 lg:h-48 xl:w-80 xl:h-60 z-50 rounded-lg overflow-hidden shadow-xl sm:shadow-2xl border sm:border-2 border-white border-opacity-20 transition-all duration-300"
             onDoubleClick={() => togglePin('local')}
             title="Double-click to pin"
           >

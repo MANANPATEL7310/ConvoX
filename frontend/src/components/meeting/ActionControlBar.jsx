@@ -35,7 +35,7 @@ export default function ActionControlBar({
 }) {
   return (
     <div
-      className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-full px-3 sm:px-6 py-2 sm:py-3 flex items-center space-x-2 sm:space-x-4 shadow-xl border border-white/10"
+      className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-3xl sm:rounded-full px-2 sm:px-6 py-2 sm:py-3 flex flex-wrap justify-center items-center gap-1 sm:gap-4 shadow-xl border border-white/10 w-[95%] sm:w-auto max-w-xl sm:max-w-2xl"
     >
       <Tooltip title={videoEnabled ? 'Turn off camera' : 'Turn on camera'} enterDelay={100} enterNextDelay={50} arrow>
         <IconButton onClick={toggleVideo} style={{ color: "white" }}>

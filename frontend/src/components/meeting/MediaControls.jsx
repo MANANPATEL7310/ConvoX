@@ -28,24 +28,7 @@ export default function MediaControls({
   toggleRaiseHand
 }) {
   return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 18,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        alignItems: 'center',
-        zIndex: 20,
-        background: 'rgba(17,24,39,0.9)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: 16,
-        padding: '10px 8px',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
-    >
+    <div className="absolute top-4 right-2 sm:top-4 sm:right-4 md:top-1/2 md:-translate-y-1/2 flex flex-row md:flex-col gap-2 sm:gap-2.5 items-center z-20 bg-gray-900/90 backdrop-blur-md rounded-2xl py-1.5 px-2 md:py-2.5 md:px-2 border border-white/10 shadow-xl max-w-[95vw] overflow-x-auto">
       {isHost && (
         <Tooltip title={isRecording ? 'Stop recording' : 'Start recording'} enterDelay={100} enterNextDelay={50} leaveDelay={0} arrow>
           <IconButton

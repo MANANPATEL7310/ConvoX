@@ -348,7 +348,7 @@ export default function HomeComponent() {
                 }`}>Quick Actions</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3">
                 {QUICK_ACTIONS.map((action) => (
                   <QuickActionCard
                     key={action.id}
@@ -470,12 +470,7 @@ export default function HomeComponent() {
                   <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-400 rounded-full opacity-10 -ml-16 -mb-16 blur-3xl" />
 
                   {/* Grid overlay */}
-                  <div className="absolute inset-0 rounded-3xl" style={{
-                    backgroundImage: dark
-                      ? 'linear-gradient(rgba(139,92,246,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.06) 1px,transparent 1px)'
-                      : 'linear-gradient(rgba(99,102,241,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.04) 1px,transparent 1px)',
-                    backgroundSize: '20px 20px',
-                  }} />
+                  <div className={`absolute inset-0 rounded-3xl ${dark ? 'bg-[length:20px_20px] bg-[linear-gradient(rgba(139,92,246,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.06)_1px,transparent_1px)]' : 'bg-[length:20px_20px] bg-[linear-gradient(rgba(99,102,241,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.04)_1px,transparent_1px)]'}`} />
 
                   <div className="relative z-10 flex flex-col items-center gap-6 text-center">
 
@@ -540,10 +535,9 @@ export default function HomeComponent() {
                         {[40, 60, 75, 90, 100, 90, 75, 55, 80, 95, 100, 85].map((h, i) => (
                           <motion.div
                             key={i}
-                            className="flex-1 rounded-sm bg-gradient-to-t from-indigo-500 to-purple-500 opacity-80"
+                            className="flex-1 rounded-sm bg-gradient-to-t from-indigo-500 to-purple-500 opacity-80 min-h-[4px]"
                             animate={{ height: [`${h * 0.4}%`, `${h}%`, `${h * 0.6}%`, `${h}%`] }}
                             transition={{ duration: 1.5 + i * 0.1, repeat: Infinity, ease: 'easeInOut', delay: i * 0.07 }}
-                            style={{ minHeight: '4px' }}
                           />
                         ))}
                       </div>

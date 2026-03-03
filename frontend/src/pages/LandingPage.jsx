@@ -59,16 +59,11 @@ export default function LandingPage() {
               {user ? (
                 <>
                   <Link to="/home">
-                    <button style={{
-                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
-                      border: dark ? '1.5px solid rgba(255,255,255,0.14)' : '1.5px solid #ddd6fe',
-                      background: dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)',
-                      color: dark ? '#a5b4fc' : '#4338ca',
-                      cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.22)' : '#e0e7ff'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)'; }}
-                    >
+                    <button className={`h-9 px-[18px] rounded-[10px] font-semibold text-sm transition-all duration-180 whitespace-nowrap ${
+                      dark 
+                        ? 'border-[1.5px] border-white/14 bg-indigo-500/12 text-indigo-300 hover:bg-indigo-500/22' 
+                        : 'border-[1.5px] border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-100'
+                    }`}>
                       Dashboard
                     </button>
                   </Link>
@@ -76,33 +71,18 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  <Link to="/auth">
-                    <button style={{
-                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
-                      border: dark ? '1.5px solid rgba(255,255,255,0.14)' : '1.5px solid #ddd6fe',
-                      background: dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)',
-                      color: dark ? '#a5b4fc' : '#4338ca',
-                      cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.22)' : '#e0e7ff'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = dark ? 'rgba(99,102,241,0.12)' : 'rgba(238,242,255,0.9)'; }}
-                    >
+                  <Link to="/auth" className="hidden sm:block">
+                    <button className={`h-9 px-[18px] rounded-[10px] font-semibold text-sm transition-all duration-180 whitespace-nowrap ${
+                      dark 
+                        ? 'border-[1.5px] border-white/14 bg-indigo-500/12 text-indigo-300 hover:bg-indigo-500/22' 
+                        : 'border-[1.5px] border-indigo-200 bg-indigo-50/90 text-indigo-700 hover:bg-indigo-100'
+                    }`}>
                       Sign In
                     </button>
                   </Link>
                   <Link to="/auth">
-                    <button style={{
-                      height: 36, padding: '0 18px', borderRadius: 10, fontWeight: 600, fontSize: 14,
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #6366f1, #9333ea)',
-                      color: '#fff', cursor: 'pointer', transition: 'all 0.18s', whiteSpace: 'nowrap',
-                      boxShadow: '0 2px 10px rgba(99,102,241,0.32)',
-                      display: 'flex', alignItems: 'center', gap: 5,
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.opacity = '0.9'; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.opacity = '1'; }}
-                    >
-                      Get Started <ArrowRight style={{ width: 14, height: 14 }} />
+                    <button className="h-9 px-[18px] rounded-[10px] font-semibold text-sm border-none bg-gradient-to-br from-indigo-500 to-purple-600 text-white cursor-pointer transition-all duration-180 whitespace-nowrap shadow-[0_2px_10px_rgba(99,102,241,0.32)] flex items-center gap-[5px] hover:scale-105 hover:opacity-90">
+                      Get Started <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </Link>
                 </>
@@ -121,14 +101,7 @@ export default function LandingPage() {
         <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-pink-400 rounded-full mix-blend-multiply opacity-10 blur-3xl animate-blob animation-delay-4000" />
 
         {/* ── Chess-box grid ── */}
-        <div className="pointer-events-none absolute inset-0" style={{
-          backgroundImage: dark
-            ? `linear-gradient(rgba(139,92,246,0.07) 1px, transparent 1px),
-               linear-gradient(90deg, rgba(139,92,246,0.07) 1px, transparent 1px)`
-            : `linear-gradient(rgba(99,102,241,0.06) 1px, transparent 1px),
-               linear-gradient(90deg, rgba(99,102,241,0.06) 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-        }} />
+        <div className={`pointer-events-none absolute inset-0 ${dark ? 'bg-[length:40px_40px] bg-[linear-gradient(rgba(139,92,246,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.07)_1px,transparent_1px)]' : 'bg-[length:40px_40px] bg-[linear-gradient(rgba(99,102,241,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.06)_1px,transparent_1px)]'}`} />
 
         {/* ── Frosted-glass overlay ── */}
         <div className={`pointer-events-none absolute inset-0 backdrop-blur-[1px] ${
@@ -316,7 +289,7 @@ export default function LandingPage() {
           <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
             className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-12 sm:p-16 shadow-2xl text-center">
             <div className="pointer-events-none absolute -right-16 -top-16 w-56 h-56 rounded-full border-4 border-white/10 animate-spin-slow" />
-            <div className="pointer-events-none absolute -left-16 -bottom-16 w-72 h-72 rounded-full border-4 border-white/10 animate-spin-slow" style={{ animationDirection: 'reverse' }} />
+            <div className="pointer-events-none absolute -left-16 -bottom-16 w-72 h-72 rounded-full border-4 border-white/10 animate-spin-slow [animation-direction:reverse]" />
             <div className="relative z-10 flex flex-col items-center gap-6">
               <h2 className="text-3xl sm:text-5xl font-black text-white">Ready to connect?</h2>
               <p className="text-indigo-100 text-lg max-w-md">Join ConvoX today — it's free forever. No credit card required.</p>
