@@ -2,6 +2,7 @@ import React from 'react';
 import { Badge, IconButton, Tooltip } from '@mui/material';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import VideocamOffIcon from '@mui/icons-material/VideocamOff';
+import FlipCameraIosIcon from '@mui/icons-material/FlipCameraIos';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import ScreenShareIcon from '@mui/icons-material/ScreenShare';
@@ -21,6 +22,7 @@ export default function ActionControlBar({
   toggleAudio,
   screenSharing,
   toggleScreenShare,
+  flipCamera,
   endCall,
   newMessages,
   openChat,
@@ -33,6 +35,9 @@ export default function ActionControlBar({
   participantCount,
   ModeIndicator // Passed down if you want to keep it decoupled
 }) {
+  // Simple check for touch-capable devices (primarily mobile/tablets)
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
   return (
     <div
       className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-3xl sm:rounded-full px-2 sm:px-6 py-2 sm:py-3 flex flex-wrap justify-center items-center gap-1 sm:gap-4 shadow-xl border border-white/10 w-[95%] sm:w-auto max-w-xl sm:max-w-2xl"
@@ -42,6 +47,14 @@ export default function ActionControlBar({
           {videoEnabled ? <VideocamIcon /> : <VideocamOffIcon />}
         </IconButton>
       </Tooltip>
+      
+      {isTouchDevice && videoEnabled && (
+        <Tooltip title="Flip camera" enterDelay={100} enterNextDelay={50} arrow>
+          <IconButton onClick={flipCamera} style={{ color: "white" }}>
+            <FlipCameraIosIcon />
+          </IconButton>
+        </Tooltip>
+      )}
       
       <Tooltip title={audioEnabled ? 'Mute microphone' : 'Unmute microphone'} enterDelay={100} enterNextDelay={50} arrow>
         <IconButton onClick={toggleAudio} style={{ color: "white" }}>

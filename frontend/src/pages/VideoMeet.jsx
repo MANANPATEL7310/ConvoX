@@ -76,7 +76,7 @@ export default function VideoMeetComponent() {
     showFeedbackModal, phase, updatePhase, waitlist, showHostPanel, setShowHostPanel, 
     username, shouldShowLobby, isHandRaised, togglePin, toggleWhiteboard, 
     mode, participantCount, upgrading, activeSpeakers, roomName, stopScreenShare, 
-    toggleVideo, toggleAudio, toggleScreenShare, sendReaction, toggleRaiseHand, 
+    toggleVideo, toggleAudio, toggleScreenShare, flipCamera, sendReaction, toggleRaiseHand, 
     toggleRecording, handleAdmitUser, handleRejectUser, handleMuteUser, handleUnmuteUser, 
     handleVideoOffUser, handleVideoOnUser, handleMuteAll, handleVideoOffAll, openChat, 
     connect, endCall, handleFeedbackClose, prejoinMediaRef
@@ -262,6 +262,7 @@ export default function VideoMeetComponent() {
               toggleAudio={toggleAudio}
               screenSharing={screenSharing}
               toggleScreenShare={toggleScreenShare}
+              flipCamera={flipCamera}
               endCall={endCall}
               newMessages={newMessages}
               openChat={openChat}

@@ -50,6 +50,7 @@ export function useMeetingEngine(localVideoRef) {
   const [showModal,      setModal]         = useState(false);
   const [newMessages,    setNewMessages]   = useState(0);
   const [videoEnabled,   setVideoEnabled]  = useState(true);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = rear
   const [audioEnabled,   setAudioEnabled]  = useState(true);
   const [screenSharing,  setScreenSharing] = useState(false);
   const [lobbyUsername,  setLobbyUsername] = useState("");
@@ -361,6 +362,39 @@ export function useMeetingEngine(localVideoRef) {
     if (screenSharing) stopScreenShare();
     else try { await startScreenShare(); } catch (_) { }
   }, [screenSharing, startScreenShare, stopScreenShare]);
+
+  const flipCamera = useCallback(async () => {
+    if (!localStreamRef.current) return;
+    const nextFacing = facingMode === 'user' ? 'environment' : 'user';
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: nextFacing } },
+        audio: false,
+      });
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack) return;
+
+      // Stop old video track
+      localStreamRef.current.getVideoTracks().forEach(t => t.stop());
+
+      // Replace track in the local stream
+      localStreamRef.current.removeTrack(localStreamRef.current.getVideoTracks()[0]);
+      localStreamRef.current.addTrack(newVideoTrack);
+
+      // Replace in all active peer connections
+      Object.values(peersRef.current).forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender) sender.replaceTrack(newVideoTrack);
+      });
+
+      // Update local preview
+      if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+
+      setFacingMode(nextFacing);
+    } catch (err) {
+      console.warn('[flipCamera] Failed to flip camera:', err.message);
+    }
+  }, [facingMode]);
 
   const addReaction = useCallback((emoji) => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -758,7 +792,7 @@ export function useMeetingEngine(localVideoRef) {
     showFeedbackModal, phase, updatePhase, waitlist, showHostPanel, setShowHostPanel, 
     prejoinMediaRef, username, shouldShowLobby, isHandRaised, togglePin, toggleWhiteboard, 
     mode, participantCount, upgrading, activeSpeakers, roomName, stopScreenShare, 
-    toggleVideo, toggleAudio, toggleScreenShare, sendReaction, toggleRaiseHand, 
+    toggleVideo, toggleAudio, toggleScreenShare, flipCamera, facingMode, sendReaction, toggleRaiseHand, 
     toggleRecording, handleAdmitUser, handleRejectUser, handleMuteUser, handleUnmuteUser, 
     handleVideoOffUser, handleVideoOnUser, handleMuteAll, handleVideoOffAll, openChat, 
     closeChat, connect, endCall, handleFeedbackClose
