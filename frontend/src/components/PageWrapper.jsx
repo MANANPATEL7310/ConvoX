@@ -53,12 +53,7 @@ export default function PageWrapper({ children, className = '' }) {
         }}
       />
 
-      {/* ── Frosted-glass wash ── */}
-      <div
-        className={`pointer-events-none absolute inset-0 backdrop-blur-[1px] ${
-          dark ? 'bg-gray-950/30' : 'bg-white/20'
-        }`}
-      />
+
 
       {/* Page content — sits on top of all decorative layers */}
       {children}
