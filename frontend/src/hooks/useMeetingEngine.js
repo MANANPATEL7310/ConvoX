@@ -407,8 +407,9 @@ export function useMeetingEngine(localVideoRef) {
   const sendReaction = useCallback((emoji) => {
     if (!emoji) return;
     setShowReactionPicker(false);
+    addReaction(emoji); // Show it locally immediately
     socketRef.current?.emit('reaction', { emoji });
-  }, []);
+  }, [addReaction]);
 
   const toggleRaiseHand = useCallback(() => {
     const selfId = socketIdRef.current;
