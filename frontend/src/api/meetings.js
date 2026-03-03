@@ -27,6 +27,11 @@ export const getMeetingHistory = async () => {
     return data;
 };
 
+export const deleteMeetingHistory = async (meetingId) => {
+  const { data } = await client.delete(`/users/history/${meetingId}`);
+  return data;
+};
+
 export const sendMeetingInvites = async (payload) => {
   const { data } = await client.post('/invite/send', payload);
   return data;

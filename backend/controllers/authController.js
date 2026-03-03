@@ -171,6 +171,32 @@ export const getUserHistory = async (req, res) => {
     }
 }
 
+export const deleteHistoryMeeting = async (req, res) => {
+    try {
+        const { meetingId } = req.params;
+        if (!meetingId) {
+            return res.status(400).json({ message: "Meeting id is required" });
+        }
+
+        const deleted = await Meeting.findOneAndDelete({
+            _id: meetingId,
+            user_id: req.user.username,
+        });
+
+        if (!deleted) {
+            return res.status(404).json({ message: "Meeting not found" });
+        }
+
+        res.status(200).json({ message: "Meeting removed from history", id: meetingId });
+    } catch (e) {
+        if (e?.name === "CastError") {
+            return res.status(400).json({ message: "Invalid meeting id" });
+        }
+        console.error("Error deleting meeting from history:", e);
+        res.status(500).json({ message: "Something went wrong while deleting history" });
+    }
+}
+
 export const getProfile = async (req, res) => {
     try {
         const userId = req.user._id;

@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMeetingHistoryQuery } from '../hooks/api/useMeetings';
+import { useMeetingHistoryQuery, useDeleteMeetingHistoryMutation } from '../hooks/api/useMeetings';
 import { motion } from 'framer-motion';
-import { Home, Video, Calendar, Clock, ArrowRight } from 'lucide-react';
+import { Home, Video, Calendar, Clock, ArrowRight, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '../contexts/ThemeContext';
@@ -29,6 +29,7 @@ export default function History() {
   
   const { data: meetingsRes } = useMeetingHistoryQuery();
   const meetings = Array.isArray(meetingsRes) ? meetingsRes : [];
+  const deleteHistoryMutation = useDeleteMeetingHistoryMutation();
 
   const [weekAgo] = useState(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
   const thisWeekCount = useMemo(
@@ -43,6 +44,14 @@ export default function History() {
   const card     = dark ? 'dark-glass'    : 'glass-card';
   const border   = dark ? 'border-white/10' : 'border-gray-100';
   const navText  = dark ? 'text-gray-300 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50';
+
+  const handleDelete = (event, meeting) => {
+    event.stopPropagation();
+    if (!meeting?._id || deleteHistoryMutation.isPending) return;
+    const ok = window.confirm(`Delete meeting ${meeting.meetingCode} from history?`);
+    if (!ok) return;
+    deleteHistoryMutation.mutate({ id: meeting._id });
+  };
 
   return (
     <PageWrapper>
@@ -117,7 +126,7 @@ export default function History() {
             <motion.div variants={container} initial="hidden" animate="show"
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {meetings.map((meeting, idx) => (
-                <motion.div key={idx} variants={item}>
+                <motion.div key={meeting._id || idx} variants={item}>
                   <div
                     onClick={() => navigate(`/${meeting.meetingCode}`)}
                     className={`${card} rounded-2xl overflow-hidden cursor-pointer group transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl border ${border}`}
@@ -133,11 +142,24 @@ export default function History() {
                         }`}>
                           <Video className={`w-5 h-5 ${dark ? 'text-indigo-400' : 'text-indigo-600'}`} />
                         </div>
-                        <Badge className={`text-[10px] uppercase tracking-wider font-semibold border px-2.5 py-1 ${
-                          dark ? 'bg-gray-800/60 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'
-                        }`}>
-                          Meeting #{idx + 1}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-[10px] uppercase tracking-wider font-semibold border px-2.5 py-1 ${
+                            dark ? 'bg-gray-800/60 border-white/10 text-gray-400' : 'bg-gray-50 border-gray-200 text-gray-500'
+                          }`}>
+                            Meeting #{idx + 1}
+                          </Badge>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={(event) => handleDelete(event, meeting)}
+                            disabled={deleteHistoryMutation.isPending}
+                            className={`border ${dark ? 'border-white/10 text-gray-300 hover:text-red-300 hover:bg-red-900/20' : 'border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50'}`}
+                            aria-label={`Delete meeting ${meeting.meetingCode}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Meeting code */}

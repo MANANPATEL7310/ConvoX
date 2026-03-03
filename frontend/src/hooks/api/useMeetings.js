@@ -5,6 +5,7 @@ import {
   updateScheduledMeeting,
   deleteScheduledMeeting,
   getMeetingHistory,
+  deleteMeetingHistory,
   sendMeetingInvites,
   generateSFUToken
 } from '../../api/meetings';
@@ -55,6 +56,16 @@ export function useMeetingHistoryQuery() {
   return useQuery({
     queryKey: meetingKeys.history,
     queryFn: getMeetingHistory,
+  });
+}
+
+export function useDeleteMeetingHistoryMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }) => deleteMeetingHistory(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: meetingKeys.history });
+    },
   });
 }
 
