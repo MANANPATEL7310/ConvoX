@@ -8,7 +8,9 @@ import { registerInteractionHandlers } from "./socket/interactionHandler.js";
 import { registerWhiteboardHandlers } from "./socket/whiteboardHandler.js";
 import { registerWebRTCHandlers } from "./socket/webrtcHandler.js";
 
-export const client = createClient();
+export const client = createClient({
+    url: process.env.REDIS_URL || 'redis://localhost:6379'
+});
 
 export const startRedis = async () => {
     try {
