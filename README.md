@@ -56,39 +56,30 @@ Live demo: [convo-x-gray.vercel.app](https://convo-x-gray.vercel.app)
 ## System Architecture
 ```mermaid
 flowchart LR
-  subgraph Clients["Browser Clients"]
-    A[Client A]
-    B[Client B]
+  subgraph Client[Web Client]
+    UI[React UI]
+    RTC[WebRTC Engine]
   end
 
-  subgraph Backend["Node.js Backend"]
-    API["Express REST API"]
-    Socket["Socket.IO Server"]
-    Worker["Schedule Worker"]
+  subgraph Backend[Node.js Backend]
+    API[Express REST API]
+    Socket[Socket.IO Server]
+    Worker[Schedule Worker]
   end
 
   DB[(MongoDB)]
-  REDIS["Redis<br/>Ephemeral State"]
-  MAIL["Email Providers<br/>Resend + SMTP"]
-  SFU["LiveKit SFU"]
-  TURN["STUN/TURN"]
+  REDIS[(Redis)]
+  MAIL[Email Provider]
+  SFU[LiveKit SFU]
 
-  A -->|HTTPS REST| API
-  B -->|HTTPS REST| API
-  A <-->|Socket.IO| Socket
-  B <-->|Socket.IO| Socket
-
-  A <-->|P2P media| B
-  A -->|ICE/STUN/TURN| TURN
-  B -->|ICE/STUN/TURN| TURN
-
-  API -->|SFU tokens| SFU
-  A -->|SFU media| SFU
-  B -->|SFU media| SFU
+  UI -->|HTTPS REST| API
+  UI <-->|Socket.IO| Socket
+  RTC <-->|WebRTC P2P| RTC
+  RTC -->|SFU Media| SFU
 
   API --> DB
   API --> MAIL
-  Socket -->|rooms, waiting room, chat, whiteboard| REDIS
+  Socket --> REDIS
   Worker --> DB
   Worker --> MAIL
 ```
@@ -98,43 +89,36 @@ flowchart LR
 ## Real Time Flow (P2P to SFU)
 ```mermaid
 sequenceDiagram
-  participant H as "Host Client"
-  participant A as "Participant"
+  participant A as Client A
   participant API as "REST API"
   participant S as "Socket.IO"
+  participant B as Client B
   participant L as LiveKit
 
-  opt Scheduled meeting waiting room
-    A->>S: waiting-room-join
-    S-->>A: in-waiting-room
-    H->>S: admit-user
-    S-->>A: admitted
-  end
-
-  H->>S: join-call
   A->>S: join-call
-  S->>H: set-mode p2p
+  B->>S: join-call
   S->>A: set-mode p2p
-  H->>S: signal (offer/ICE)
-  S->>A: signal (offer/ICE)
-  A->>S: signal (answer/ICE)
-  S->>H: signal (answer/ICE)
-  H->>A: WebRTC P2P media
-  A->>H: WebRTC P2P media
+  S->>B: set-mode p2p
+  A->>S: signal (offer/ICE)
+  S->>B: signal (offer/ICE)
+  B->>S: signal (answer/ICE)
+  S->>A: signal (answer/ICE)
+  A->>B: WebRTC P2P media
+  B->>A: WebRTC P2P media
 
   Note over S: Threshold crossed (3+ participants)
-  S->>H: upgrade-to-sfu
   S->>A: upgrade-to-sfu
-  H->>API: POST /livekit/token
-  API-->>H: token + wsUrl
+  S->>B: upgrade-to-sfu
   A->>API: POST /livekit/token
   API-->>A: token + wsUrl
-  H->>L: Connect to SFU
+  B->>API: POST /livekit/token
+  API-->>B: token + wsUrl
   A->>L: Connect to SFU
-  H->>L: SFU media up
-  L->>H: SFU media down
+  B->>L: Connect to SFU
   A->>L: SFU media up
   L->>A: SFU media down
+  B->>L: SFU media up
+  L->>B: SFU media down
 ```
 
 ---
