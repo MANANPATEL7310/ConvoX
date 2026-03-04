@@ -84,15 +84,18 @@ sequenceDiagram
   A->>S: join-call
   S->>A: set-mode p2p
   S->>B: set-mode p2p
-  A<->>B: WebRTC P2P media
+  A->>B: WebRTC P2P media
+  B->>A: WebRTC P2P media
 
   Note over S: Threshold crossed (3+ participants)
   S->>A: upgrade-to-sfu
   S->>B: upgrade-to-sfu
   A->>L: Connect with token
   B->>L: Connect with token
-  A<->>L: SFU media
-  B<->>L: SFU media
+  A->>L: SFU media up
+  L->>A: SFU media down
+  B->>L: SFU media up
+  L->>B: SFU media down
 ```
 
 **Tech Stack**
@@ -197,10 +200,8 @@ npm run dev
 - Use a managed Redis service for reliable ephemeral state.
 - Configure a verified email sender for reminders and invites.
 
-**GitHub Widgets**
-![GitHub Stats](https://github-readme-stats.vercel.app/api?username=MANANPATEL7310&show_icons=true&theme=transparent)
-![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=MANANPATEL7310&layout=compact&theme=transparent)
-![Streak](https://streak-stats.demolab.com?user=MANANPATEL7310&theme=transparent)
+**Thanks**
+Thanks for checking out ConvoX. If you build something cool with it, share feedback or open an issue — it helps a ton.
 
 **Contributing**
 Contributions are welcome. Please open an issue or submit a pull request with a clear description.
