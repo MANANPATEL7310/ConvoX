@@ -56,30 +56,39 @@ Live demo: [convo-x-gray.vercel.app](https://convo-x-gray.vercel.app)
 ## System Architecture
 ```mermaid
 flowchart LR
-  subgraph Client[Web Client]
-    UI[React UI]
-    RTC[WebRTC Engine]
+  subgraph Clients["Browser Clients"]
+    A[Client A]
+    B[Client B]
   end
 
-  subgraph Backend[Node.js Backend]
-    API[Express REST API]
-    Socket[Socket.IO Server]
-    Worker[Schedule Worker]
+  subgraph Backend["Node.js Backend"]
+    API["Express REST API"]
+    Socket["Socket.IO Server"]
+    Worker["Schedule Worker"]
   end
 
   DB[(MongoDB)]
-  REDIS[(Redis)]
-  MAIL[Email Provider]
-  SFU[LiveKit SFU]
+  REDIS["Redis<br/>Ephemeral State"]
+  MAIL["Email Providers<br/>Resend + SMTP"]
+  SFU["LiveKit SFU"]
+  TURN["STUN/TURN"]
 
-  UI -->|HTTPS REST| API
-  UI <-->|Socket.IO| Socket
-  RTC <-->|WebRTC P2P| RTC
-  RTC -->|SFU Media| SFU
+  A -->|HTTPS REST| API
+  B -->|HTTPS REST| API
+  A <-->|Socket.IO| Socket
+  B <-->|Socket.IO| Socket
+
+  A <-->|P2P media| B
+  A -->|ICE/STUN/TURN| TURN
+  B -->|ICE/STUN/TURN| TURN
+
+  API -->|SFU tokens| SFU
+  A -->|SFU media| SFU
+  B -->|SFU media| SFU
 
   API --> DB
   API --> MAIL
-  Socket --> REDIS
+  Socket -->|rooms, waiting room, chat, whiteboard| REDIS
   Worker --> DB
   Worker --> MAIL
 ```
