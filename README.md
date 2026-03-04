@@ -26,7 +26,7 @@ Live demo: [convo-x-gray.vercel.app](https://convo-x-gray.vercel.app)
 8. Docker Setup
 9. Scripts
 10. Production Notes
-11. GitHub Widgets
+11. Thanks
 12. Contributing
 13. License
 
@@ -45,9 +45,9 @@ Live demo: [convo-x-gray.vercel.app](https://convo-x-gray.vercel.app)
 **System Architecture**
 ```mermaid
 flowchart LR
-  subgraph Client[Web Client]
-    UI[React UI]
-    RTC[WebRTC Engine]
+  subgraph Clients[Browser Clients]
+    A[Client A]
+    B[Client B]
   end
 
   subgraph Backend[Node.js Backend]
@@ -57,14 +57,22 @@ flowchart LR
   end
 
   DB[(MongoDB)]
-  REDIS[(Redis)]
-  MAIL[Email Provider]
-  SFU[LiveKit SFU]
+  REDIS[("Redis<br/>Ephemeral State")]
+  MAIL[("Email Providers<br/>Resend + SMTP")]
+  SFU[(LiveKit SFU)]
+  TURN[(STUN/TURN)]
 
-  UI -->|HTTPS REST| API
-  UI <-->|Socket.IO| Socket
-  RTC <-->|WebRTC P2P| RTC
-  RTC -->|SFU Media| SFU
+  A -->|HTTPS REST| API
+  B -->|HTTPS REST| API
+  A <-->|Socket.IO| Socket
+  B <-->|Socket.IO| Socket
+
+  A <-->|P2P media| B
+  A -->|ICE/STUN/TURN| TURN
+  B -->|ICE/STUN/TURN| TURN
+
+  A -->|SFU media| SFU
+  B -->|SFU media| SFU
 
   API --> DB
   API --> MAIL
@@ -77,21 +85,31 @@ flowchart LR
 ```mermaid
 sequenceDiagram
   participant A as Client A
+  participant API as REST API
   participant S as Socket.IO
   participant B as Client B
   participant L as LiveKit
 
   A->>S: join-call
+  B->>S: join-call
   S->>A: set-mode p2p
   S->>B: set-mode p2p
+  A->>S: signal (offer/ICE)
+  S->>B: signal (offer/ICE)
+  B->>S: signal (answer/ICE)
+  S->>A: signal (answer/ICE)
   A->>B: WebRTC P2P media
   B->>A: WebRTC P2P media
 
   Note over S: Threshold crossed (3+ participants)
   S->>A: upgrade-to-sfu
   S->>B: upgrade-to-sfu
-  A->>L: Connect with token
-  B->>L: Connect with token
+  A->>API: POST /livekit/token
+  API-->>A: token + wsUrl
+  B->>API: POST /livekit/token
+  API-->>B: token + wsUrl
+  A->>L: Connect to SFU
+  B->>L: Connect to SFU
   A->>L: SFU media up
   L->>A: SFU media down
   B->>L: SFU media up
