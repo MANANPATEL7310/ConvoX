@@ -1,4 +1,4 @@
-![ConvoX Header](https://capsule-render.vercel.app/api?type=waving&color=0:4f46e5,100:8b5cf6&height=240&section=header&text=ConvoX&fontSize=60&fontColor=ffffff&animation=fadeIn&fontAlignY=35)
+![ConvoX Header](https://capsule-render.vercel.app/api?type=venom&color=0:0ea5e9,100:8b5cf6&height=260&section=header&text=ConvoX&fontSize=64&fontColor=ffffff&animation=twinkling&fontAlignY=40&stroke=ffffff&strokeWidth=1)
 
 ![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&size=22&duration=3000&pause=600&color=8B5CF6&center=true&vCenter=true&width=900&lines=Realtime+video+meetings;Hybrid+WebRTC+P2P+and+SFU;Scheduling+and+email+reminders;Whiteboard+sync+and+live+captions;Host+controls+and+waiting+room)
 
@@ -11,26 +11,35 @@
 ![LiveKit](https://img.shields.io/badge/livekit-SFU-6366f1?style=flat-square)
 ![WebRTC](https://img.shields.io/badge/webrtc-P2P-0ea5e9?style=flat-square)
 
+---
+
+## Overview
 ConvoX is a full-stack video meeting platform with a hybrid WebRTC engine that runs P2P for small rooms and upgrades to SFU for larger rooms. It includes scheduling with email reminders, a synced whiteboard, live captions, chat, and robust host controls.
 
 Live demo: [convo-x-gray.vercel.app](https://convo-x-gray.vercel.app)
 
-**Table Of Contents**
-1. Features
-2. System Architecture
-3. Real Time Flow (P2P to SFU)
-4. Tech Stack
-5. Project Structure
-6. Getting Started
-7. Environment Variables
-8. Docker Setup
-9. Scripts
-10. Production Notes
-11. Thanks
-12. Contributing
-13. License
+---
 
-**Features**
+## Table Of Contents
+1. [Overview](#overview)
+2. [Features](#features)
+3. [System Architecture](#system-architecture)
+4. [Real Time Flow (P2P to SFU)](#real-time-flow-p2p-to-sfu)
+5. [Tech Stack](#tech-stack)
+6. [Project Structure](#project-structure)
+7. [Getting Started](#getting-started)
+8. [Environment Variables](#environment-variables)
+9. [Docker Setup](#docker-setup)
+10. [Local Development](#local-development)
+11. [Scripts](#scripts)
+12. [Production Notes](#production-notes)
+13. [Thanks](#thanks)
+14. [Contributing](#contributing)
+15. [License](#license)
+
+---
+
+## Features
 - Hybrid WebRTC: P2P for small rooms, automatic SFU upgrade via LiveKit when participants exceed the threshold.
 - Redis ephemeral state: connections, waiting room, chat history, and whiteboard snapshots are stored in Redis and cleaned when rooms end.
 - Chat system: real-time messages, typing indicators, and file sharing over Socket.IO.
@@ -42,25 +51,27 @@ Live demo: [convo-x-gray.vercel.app](https://convo-x-gray.vercel.app)
 - Waiting room: enforced entry flow for scheduled meetings and host approval.
 - Screen sharing: real-time screen share toggles with active presenter layout.
 
-**System Architecture**
+---
+
+## System Architecture
 ```mermaid
 flowchart LR
-  subgraph Clients[Browser Clients]
+  subgraph Clients["Browser Clients"]
     A[Client A]
     B[Client B]
   end
 
-  subgraph Backend[Node.js Backend]
-    API[Express REST API]
-    Socket[Socket.IO Server]
-    Worker[Schedule Worker]
+  subgraph Backend["Node.js Backend"]
+    API["Express REST API"]
+    Socket["Socket.IO Server"]
+    Worker["Schedule Worker"]
   end
 
   DB[(MongoDB)]
-  REDIS[("Redis<br/>Ephemeral State")]
-  MAIL[("Email Providers<br/>Resend + SMTP")]
-  SFU[(LiveKit SFU)]
-  TURN[(STUN/TURN)]
+  REDIS["Redis<br/>Ephemeral State"]
+  MAIL["Email Providers<br/>Resend + SMTP"]
+  SFU["LiveKit SFU"]
+  TURN["STUN/TURN"]
 
   A -->|HTTPS REST| API
   B -->|HTTPS REST| API
@@ -71,52 +82,64 @@ flowchart LR
   A -->|ICE/STUN/TURN| TURN
   B -->|ICE/STUN/TURN| TURN
 
+  API -->|SFU tokens| SFU
   A -->|SFU media| SFU
   B -->|SFU media| SFU
 
   API --> DB
   API --> MAIL
-  Socket --> REDIS
+  Socket -->|rooms, waiting room, chat, whiteboard| REDIS
   Worker --> DB
   Worker --> MAIL
 ```
 
-**Real Time Flow (P2P to SFU)**
+---
+
+## Real Time Flow (P2P to SFU)
 ```mermaid
 sequenceDiagram
-  participant A as Client A
-  participant API as REST API
-  participant S as Socket.IO
-  participant B as Client B
+  participant H as "Host Client"
+  participant A as "Participant"
+  participant API as "REST API"
+  participant S as "Socket.IO"
   participant L as LiveKit
 
+  opt Scheduled meeting waiting room
+    A->>S: waiting-room-join
+    S-->>A: in-waiting-room
+    H->>S: admit-user
+    S-->>A: admitted
+  end
+
+  H->>S: join-call
   A->>S: join-call
-  B->>S: join-call
+  S->>H: set-mode p2p
   S->>A: set-mode p2p
-  S->>B: set-mode p2p
-  A->>S: signal (offer/ICE)
-  S->>B: signal (offer/ICE)
-  B->>S: signal (answer/ICE)
-  S->>A: signal (answer/ICE)
-  A->>B: WebRTC P2P media
-  B->>A: WebRTC P2P media
+  H->>S: signal (offer/ICE)
+  S->>A: signal (offer/ICE)
+  A->>S: signal (answer/ICE)
+  S->>H: signal (answer/ICE)
+  H->>A: WebRTC P2P media
+  A->>H: WebRTC P2P media
 
   Note over S: Threshold crossed (3+ participants)
+  S->>H: upgrade-to-sfu
   S->>A: upgrade-to-sfu
-  S->>B: upgrade-to-sfu
+  H->>API: POST /livekit/token
+  API-->>H: token + wsUrl
   A->>API: POST /livekit/token
   API-->>A: token + wsUrl
-  B->>API: POST /livekit/token
-  API-->>B: token + wsUrl
+  H->>L: Connect to SFU
   A->>L: Connect to SFU
-  B->>L: Connect to SFU
+  H->>L: SFU media up
+  L->>H: SFU media down
   A->>L: SFU media up
   L->>A: SFU media down
-  B->>L: SFU media up
-  L->>B: SFU media down
 ```
 
-**Tech Stack**
+---
+
+## Tech Stack
 - Frontend: React, Vite, Tailwind CSS, MUI, Framer Motion, LiveKit Components
 - Backend: Node.js, Express, Socket.IO, Mongoose, Redis, LiveKit Server SDK
 - Auth: JWT cookies, Google OAuth via Passport
@@ -124,7 +147,9 @@ sequenceDiagram
 - Email: Resend for scheduling reminders, SMTP for direct invites
 - Whiteboard: Excalidraw
 
-**Project Structure**
+---
+
+## Project Structure
 ```text
 ConvoX/
   backend/
@@ -146,7 +171,9 @@ ConvoX/
   README.md
 ```
 
-**Getting Started**
+---
+
+## Getting Started
 1. Install Node.js 18 or newer.
 2. Create MongoDB and Redis instances.
 3. Configure LiveKit (cloud or local via Docker).
@@ -154,8 +181,10 @@ ConvoX/
 5. Install dependencies for backend and frontend.
 6. Start backend, then frontend.
 
-**Environment Variables**
-Backend (`backend/.env`)
+---
+
+## Environment Variables
+### Backend (`backend/.env`)
 | Name | Required | Description | Example |
 | --- | --- | --- | --- |
 | MONGO_URL | Yes | MongoDB connection string | mongodb+srv://user:pass@cluster0.mongodb.net/db |
@@ -175,7 +204,7 @@ Backend (`backend/.env`)
 | SMTP_EMAIL | Optional | SMTP address for invite emails | your_email@gmail.com |
 | SMTP_PASSWORD | Optional | SMTP app password | your_app_password |
 
-Frontend (`frontend/.env`)
+### Frontend (`frontend/.env`)
 | Name | Required | Description | Example |
 | --- | --- | --- | --- |
 | VITE_API_URL | Yes | API base URL | http://localhost:8000/api/v1/users |
@@ -184,7 +213,9 @@ Frontend (`frontend/.env`)
 | VITE_TURN_USERNAME | Optional | TURN username | your_turn_username |
 | VITE_TURN_CREDENTIAL | Optional | TURN credential | your_turn_credential |
 
-**Docker Setup**
+---
+
+## Docker Setup
 1. Start Redis and LiveKit using Docker Compose.
 2. Configure backend LIVEKIT_WS_URL to ws://localhost:7880.
 
@@ -192,7 +223,9 @@ Frontend (`frontend/.env`)
 docker compose up -d
 ```
 
-**Local Development**
+---
+
+## Local Development
 Backend:
 ```bash
 cd backend
@@ -207,22 +240,36 @@ npm install
 npm run dev
 ```
 
-**Scripts**
+---
+
+## Scripts
 - `backend`: `npm run dev` starts the API and Socket.IO server.
 - `frontend`: `npm run dev` starts the Vite dev server.
 
-**Production Notes**
+---
+
+## Production Notes
 - Use HTTPS and secure cookies in production.
 - Provide TURN credentials for reliable media connectivity.
 - Configure LiveKit with production keys and public URL.
 - Use a managed Redis service for reliable ephemeral state.
 - Configure a verified email sender for reminders and invites.
 
-**Thanks**
+---
+
+## Thanks
 Thanks for checking out ConvoX. If you build something cool with it, share feedback or open an issue — it helps a ton.
 
-**Contributing**
+---
+
+## Contributing
 Contributions are welcome. Please open an issue or submit a pull request with a clear description.
 
-**License**
+---
+
+## License
 This project is licensed under the MIT License.
+
+![Footer Wave](https://capsule-render.vercel.app/api?type=waving&color=0:8b5cf6,100:0ea5e9&height=120&section=footer&animation=twinkling)
+
+<p align="right">~By : Manan patel</p>
