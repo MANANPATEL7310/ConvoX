@@ -254,6 +254,9 @@ export default function VideoMeetComponent() {
               togglePin={togglePin}
               screenSharing={screenSharing}
               showModal={showModal}
+              mediaStates={mediaStates}
+              videoEnabled={videoEnabled}
+              username={username}
             />
         {/* ── Bottom Controls (always visible) ── */}
             <ActionControlBar

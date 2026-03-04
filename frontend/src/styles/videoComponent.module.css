@@ -703,3 +703,99 @@
     padding: 5px 0;
   }
 }
+
+/* ══════════════════════════════════════════════════════
+   VIDEO-OFF AVATAR OVERLAY  (Google Meet style)
+══════════════════════════════════════════════════════ */
+
+.videoOffOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: radial-gradient(ellipse at 40% 35%, #1e1b4b 0%, #0f0f23 55%, #0a0a14 100%);
+  border-radius: inherit;
+  animation: overlayFadeIn 0.25s ease;
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.avatarCircle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.25),
+    0 0 20px rgba(139, 92, 246, 0.3),
+    0 4px 16px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+
+/* Smaller circle for sidebar thumbnails */
+.presenterThumb .avatarCircle {
+  width: 36px;
+  height: 36px;
+}
+
+.presenterThumb .avatarInitials {
+  font-size: 13px;
+}
+
+.presenterThumb .avatarName {
+  font-size: 10px;
+}
+
+.presenterThumb .cameraOffBadge {
+  display: none;
+  /* hide badge in tiny thumbnails */
+}
+
+.avatarInitials {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  user-select: none;
+}
+
+.avatarName {
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  max-width: 90%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cameraOffBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
