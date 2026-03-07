@@ -341,7 +341,7 @@ export function useMeetingEngine(localVideoRef) {
       emitMediaState(audioEnabledRef.current, enabled);
     } else {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia(buildVideoConstraints(videoQualityRef.current));
+        const stream = await navigator.mediaDevices.getUserMedia({ video: buildVideoConstraints(videoQualityRef.current), audio: false });
         const newTrack = stream.getVideoTracks()[0];
         localStreamRef.current.getVideoTracks().forEach(t => localStreamRef.current.removeTrack(t));
         localStreamRef.current.addTrack(newTrack);
@@ -371,7 +371,7 @@ export function useMeetingEngine(localVideoRef) {
       emitMediaState(enabled, videoEnabledRef.current);
     } else {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia(buildAudioConstraints());
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: buildAudioConstraints(), video: false });
         const newTrack = stream.getAudioTracks()[0];
         localStreamRef.current.getAudioTracks().forEach(t => localStreamRef.current.removeTrack(t));
         localStreamRef.current.addTrack(newTrack);
