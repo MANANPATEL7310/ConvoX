@@ -207,6 +207,8 @@ export default function VideoMeetComponent() {
         <SFURoom
           roomName={roomName}
           username={username}
+          videoEnabled={videoEnabled}
+          audioEnabled={audioEnabled}
           onEndCall={endCall}
           showChat={showModal}
           onToggleChat={openChat}

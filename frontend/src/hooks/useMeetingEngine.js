@@ -240,14 +240,9 @@ export function useMeetingEngine(localVideoRef) {
     });
   }, [videoQuality, participantCount, phase, applyEncodingToPeer, applyQualityToLocalTrack]);
 
-  const getLocalMedia = useCallback(async (constraints = { video: true, audio: true }) => {
+  const getLocalMedia = useCallback(async (constraints = { video: videoEnabledRef.current, audio: audioEnabledRef.current }) => {
     if (localStreamRef.current) {
-      const hasVideo = localStreamRef.current.getVideoTracks().length > 0;
-      const hasAudio = localStreamRef.current.getAudioTracks().length > 0;
-      if ((!constraints.video || hasVideo) && (!constraints.audio || hasAudio)) {
-        return localStreamRef.current;
-      }
-      localStreamRef.current.getTracks().forEach(track => track.stop());
+      return localStreamRef.current;
     }
     try {
       const qualityKey = videoQualityRef.current || 'standard';
@@ -334,29 +329,64 @@ export function useMeetingEngine(localVideoRef) {
     socketRef.current?.emit('media-state', payload);
   }, []);
 
-  const toggleVideo = useCallback(() => {
-    if (localStreamRef.current) {
-      const videoTracks = localStreamRef.current.getVideoTracks();
-      if (videoTracks.length > 0) {
-        const enabled = !videoTracks[0].enabled;
-        videoTracks[0].enabled = enabled;
-        setVideoEnabled(enabled);
-        emitMediaState(audioEnabledRef.current, enabled);
+  const toggleVideo = useCallback(async () => {
+    if (!localStreamRef.current) return;
+    const videoTracks = localStreamRef.current.getVideoTracks();
+    if (videoTracks.length > 0 && videoTracks[0].readyState === 'live') {
+      const track = videoTracks[0];
+      const enabled = !track.enabled;
+      track.enabled = enabled;
+      if (!enabled) track.stop();
+      setVideoEnabled(enabled);
+      emitMediaState(audioEnabledRef.current, enabled);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(buildVideoConstraints(videoQualityRef.current));
+        const newTrack = stream.getVideoTracks()[0];
+        localStreamRef.current.getVideoTracks().forEach(t => localStreamRef.current.removeTrack(t));
+        localStreamRef.current.addTrack(newTrack);
+        Object.values(peersRef.current).forEach(pc => {
+          const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender) sender.replaceTrack(newTrack);
+          else pc.addTrack(newTrack, localStreamRef.current);
+        });
+        if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
+        setVideoEnabled(true);
+        emitMediaState(audioEnabledRef.current, true);
+      } catch (err) {
+        toast.error("Failed to access camera");
       }
     }
-  }, [emitMediaState]);
+  }, [emitMediaState, buildVideoConstraints]);
 
-  const toggleAudio = useCallback(() => {
-    if (localStreamRef.current) {
-      const audioTracks = localStreamRef.current.getAudioTracks();
-      if (audioTracks.length > 0) {
-        const enabled = !audioTracks[0].enabled;
-        audioTracks[0].enabled = enabled;
-        setAudioEnabled(enabled);
-        emitMediaState(enabled, videoEnabledRef.current);
+  const toggleAudio = useCallback(async () => {
+    if (!localStreamRef.current) return;
+    const audioTracks = localStreamRef.current.getAudioTracks();
+    if (audioTracks.length > 0 && audioTracks[0].readyState === 'live') {
+      const track = audioTracks[0];
+      const enabled = !track.enabled;
+      track.enabled = enabled;
+      if (!enabled) track.stop();
+      setAudioEnabled(enabled);
+      emitMediaState(enabled, videoEnabledRef.current);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(buildAudioConstraints());
+        const newTrack = stream.getAudioTracks()[0];
+        localStreamRef.current.getAudioTracks().forEach(t => localStreamRef.current.removeTrack(t));
+        localStreamRef.current.addTrack(newTrack);
+        Object.values(peersRef.current).forEach(pc => {
+          const sender = pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+          if (sender) sender.replaceTrack(newTrack);
+          else pc.addTrack(newTrack, localStreamRef.current);
+        });
+        setAudioEnabled(true);
+        emitMediaState(true, videoEnabledRef.current);
+      } catch (err) {
+        toast.error("Failed to access microphone");
       }
     }
-  }, [emitMediaState]);
+  }, [emitMediaState, buildAudioConstraints]);
 
   const toggleScreenShare = useCallback(async () => {
     if (screenSharing) stopScreenShare();
@@ -548,12 +578,18 @@ export function useMeetingEngine(localVideoRef) {
     const currentUsername = usernameRef.current;
     try {
       const qualityKey = quality || videoQualityRef.current || 'standard';
-      const constraints = resolveMediaConstraints({ video: v, audio: a }, qualityKey);
-      const s = await navigator.mediaDevices.getUserMedia(constraints);
+      let s;
+      try {
+        const constraints = resolveMediaConstraints({ video: true, audio: true }, qualityKey);
+        s = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (e) {
+        const fallback = resolveMediaConstraints({ video: v, audio: a }, qualityKey);
+        s = await navigator.mediaDevices.getUserMedia(fallback);
+      }
       localStreamRef.current = s;
       if (localVideoRef.current) localVideoRef.current.srcObject = s;
-      s.getVideoTracks().forEach(t => { t.enabled = v; });
-      s.getAudioTracks().forEach(t => { t.enabled = a; });
+      s.getVideoTracks().forEach(t => { t.enabled = v; if (!v) t.stop(); });
+      s.getAudioTracks().forEach(t => { t.enabled = a; if (!a) t.stop(); });
       setVideoEnabled(v);
       setAudioEnabled(a);
       setVideoQuality(qualityKey);

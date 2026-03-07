@@ -152,7 +152,7 @@ function VideoGrid({ pinnedSid, onTogglePin }) {
 
 
 export default function SFURoom({
-  roomName, username, onEndCall, showChat, onToggleChat, newMessages, chatPanel,
+  roomName, username, videoEnabled, audioEnabled, onEndCall, showChat, onToggleChat, newMessages, chatPanel,
   isHost, waitlistCount, onToggleShareCard, onToggleAdmitPanel,
   onSendReaction, onToggleRaiseHand, isHandRaised, reactionOptions = [],
   captionsEnabled, onToggleCaptions, isRecording, onToggleRecording,
@@ -237,8 +237,8 @@ export default function SFURoom({
         serverUrl={wsUrl}
         token={token}
         connect={true}
-        video={true}
-        audio={true}
+        video={videoEnabled}
+        audio={audioEnabled}
         style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
         onDisconnected={handleDisconnected}
       >
