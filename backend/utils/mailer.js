@@ -1,37 +1,39 @@
-import { Resend } from "resend";
+import sgMail from "@sendgrid/mail";
 
-let resendClient = null;
+let isInitialized = false;
 
-const getResend = () => {
-  if (resendClient) return resendClient;
+const initSendGrid = () => {
+  if (isInitialized) return;
 
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env.SENDGRID_API_KEY;
 
   if (!apiKey) {
-    console.error("[Email] FATAL: RESEND_API_KEY is not set in environment variables!");
-    throw new Error("RESEND_API_KEY must be set to send emails.");
+    console.error("[Email] FATAL: SENDGRID_API_KEY is not set in environment variables!");
+    throw new Error("SENDGRID_API_KEY must be set to send emails.");
   }
 
-  console.log("[Email] Resend client initialized.");
-  resendClient = new Resend(apiKey);
-  return resendClient;
+  sgMail.setApiKey(apiKey);
+  console.log("[Email] SendGrid client initialized.");
+  isInitialized = true;
 };
 
 export const sendEmail = async ({ to, subject, html }) => {
-  const resend = getResend();
+  initSendGrid();
 
-  const { data, error } = await resend.emails.send({
-    from: "ConvoX <onboarding@resend.dev>", // Use your verified domain once set up
-    to,
+  const msg = {
+    to, // SendGrid's 'to' field automatically accepts an array of strings for batch sending!
+    from: "convox7310@gmail.com", // This MUST match the Single Sender verified email in the screenshot
     subject,
     html,
-  });
+  };
 
-  if (error) {
-    console.error(`[Email] ❌ Failed to send to ${to}:`, error.message);
-    throw new Error(error.message);
+  try {
+    // sendMultiple sends individual emails to each recipient in the 'to' array without them seeing each other
+    const response = await sgMail.sendMultiple(msg);
+    console.log(`[Email] ✅ Sent successfully via SendGrid to:`, Array.isArray(to) ? to.join(", ") : to);
+    return response;
+  } catch (error) {
+    console.error(`[Email] ❌ Failed to send via SendGrid:`, error.response?.body || error.message);
+    throw new Error(error.response?.body?.errors?.[0]?.message || error.message);
   }
-
-  console.log(`[Email] ✅ Sent to ${to} | MessageId: ${data.id}`);
-  return data;
 };
