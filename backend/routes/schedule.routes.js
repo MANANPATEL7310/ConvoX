@@ -133,13 +133,11 @@ router.post("/", verifyToken, async (req, res) => {
         scheduledFor: meeting.scheduledFor,
       });
 
-      for (const attendeeEmail of attendeeEmails) {
-        sendEmailSafe({
-          to: attendeeEmail,
-          subject: `Invitation: ${meetingTitle}`,
-          html: inviteHtml,
-        });
-      }
+      sendEmailSafe({
+        to: attendeeEmails,
+        subject: `Invitation: ${meetingTitle}`,
+        html: inviteHtml,
+      });
     }
   } catch (error) {
     console.error("Schedule create error:", error);
@@ -251,13 +249,11 @@ router.put("/:id", verifyToken, async (req, res) => {
         scheduledFor: meeting.scheduledFor,
       });
 
-      for (const attendeeEmail of meeting.attendees) {
-        sendEmailSafe({
-          to: attendeeEmail,
-          subject: `Updated invite: ${meeting.title}`,
-          html: attendeeUpdateHtml,
-        });
-      }
+      sendEmailSafe({
+        to: meeting.attendees,
+        subject: `Updated invite: ${meeting.title}`,
+        html: attendeeUpdateHtml,
+      });
     }
   } catch (error) {
     console.error("Schedule update error:", error);
@@ -320,13 +316,11 @@ router.delete("/:id", verifyToken, async (req, res) => {
         reason: cancelReason,
       });
 
-      for (const attendeeEmail of meeting.attendees) {
-        sendEmailSafe({
-          to: attendeeEmail,
-          subject: `Cancelled: ${meeting.title}`,
-          html: attendeeCancelHtml,
-        });
-      }
+      sendEmailSafe({
+        to: meeting.attendees,
+        subject: `Cancelled: ${meeting.title}`,
+        html: attendeeCancelHtml,
+      });
     }
   } catch (error) {
     console.error("Schedule cancel error:", error);

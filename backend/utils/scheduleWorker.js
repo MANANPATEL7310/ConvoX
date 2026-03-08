@@ -34,8 +34,8 @@ const sendToHostOnly = async ({ meeting, subject, html }) => {
 
 const sendToAttendees = async ({ meeting, subject, html }) => {
   const { attendeeEmails } = getRecipientLists(meeting);
-  for (const recipient of attendeeEmails) {
-    await sendEmail({ to: recipient, subject, html });
+  if (attendeeEmails.length > 0) {
+    await sendEmail({ to: attendeeEmails, subject, html });
   }
 };
 

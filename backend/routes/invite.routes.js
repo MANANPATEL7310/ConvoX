@@ -56,19 +56,20 @@ router.post("/send", async (req, res) => {
   const sender = senderName || "Someone";
   const results = [];
 
-  for (const email of validEmails) {
-    const trimmed = email.trim();
-    try {
-      await sendEmail({
-        to: trimmed,
-        subject: `${sender} invited you to a ConvoX meeting`,
-        html: renderInviteEmail({ meetingUrl, sender }),
-      });
+  try {
+    await sendEmail({
+      to: validEmails,
+      subject: `${sender} invited you to a ConvoX meeting`,
+      html: renderInviteEmail({ meetingUrl, sender }),
+    });
 
-      results.push({ email: trimmed, status: "sent" });
-    } catch (err) {
-      console.error(`Failed to send to ${trimmed}:`, err.message);
-      results.push({ email: trimmed, status: "failed", error: err.message });
+    for (const email of validEmails) {
+      results.push({ email: email.trim(), status: "sent" });
+    }
+  } catch (err) {
+    console.error(`Failed to send invites:`, err.message);
+    for (const email of validEmails) {
+      results.push({ email: email.trim(), status: "failed", error: err.message });
     }
   }
 
