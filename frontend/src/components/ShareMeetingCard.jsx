@@ -261,10 +261,10 @@ export default function ShareMeetingCard({ meetingUrl, senderName, onClose, onJo
               </Button>
             </div>
 
-            <p className={`text-[10px] mt-2 ${dark ? 'text-gray-600' : 'text-gray-400'}`}>
+            <p className={`text-[10px] mt-2 leading-relaxed ${dark ? 'text-gray-600' : 'text-gray-400'}`}>
               Press Enter or comma to add. We'll send a branded invite email to each recipient.
               <br />
-              <strong className={dark ? 'text-indigo-400' : 'text-indigo-600'}>Note:</strong> Unverified sender emails may land in the recipient's Spam/Junk folder. 
+              <strong className={dark ? 'text-indigo-400' : 'text-indigo-600'}>Please tell your attendees:</strong> "Check your Spam/Junk folder if you don't see the invite, and move it to your Inbox to receive future reminders."
             </p>
 
             {/* Send button */}
