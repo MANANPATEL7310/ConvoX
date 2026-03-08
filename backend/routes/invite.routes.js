@@ -27,6 +27,8 @@ const renderInviteEmail = ({ meetingUrl, sender }) => `
 
     <p style="text-align: center; color: #94a3b8; font-size: 11px; margin-top: 24px;">
       Sent via ConvoX — Crystal-clear video meetings
+      <br/><br/>
+      <strong style="color: #64748b;">Important:</strong> Ensure you don't miss future invites by moving this email to your primary Inbox if it arrived in Spam.
     </p>
   </div>
 `;

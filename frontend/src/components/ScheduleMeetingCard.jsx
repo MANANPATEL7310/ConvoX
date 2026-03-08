@@ -304,6 +304,9 @@ export default function ScheduleMeetingCard({
                   placeholder="host@email.com"
                   className={dark ? 'bg-gray-900 border-gray-700 text-white' : ''}
                 />
+                <p className={`text-[10px] mt-1 ${dark ? 'text-orange-400/80' : 'text-orange-600/80'}`}>
+                  Host and attendees should check their Spam/Junk folder for reminders.
+                </p>
               </div>
             </div>
           </div>

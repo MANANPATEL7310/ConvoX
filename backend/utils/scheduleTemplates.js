@@ -27,6 +27,8 @@ const renderFrame = ({ title, body, footer }) => {
       </div>
       <p style="text-align: center; color: #94a3b8; font-size: 11px; margin-top: 22px;">
         ${footer || "Sent via ConvoX"}
+        <br/><br/>
+        <strong style="color: #64748b;">Important:</strong> To ensure you don't miss future reminders safely move this email to your primary Inbox if it arrived in Spam.
       </p>
     </div>
   `;
