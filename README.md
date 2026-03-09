@@ -14,7 +14,7 @@
 ---
 
 ## Overview
-ConvoX is a full-stack video meeting platform with a hybrid WebRTC engine that runs P2P for small rooms and upgrades to SFU for larger rooms. It includes scheduling with email reminders, a synced whiteboard, live captions, chat, and robust host controls.
+ConvoX is a full-stack video meeting platform (a Google Meet and Zoom-like app combination, currently under active development) with a hybrid WebRTC engine that runs P2P for small rooms and upgrades to SFU for larger rooms. It includes scheduling with email reminders, a synced whiteboard, live captions, chat, and robust host controls.
 
 Live demo: [convo-x-gray.vercel.app](https://convo-x-gray.vercel.app)
 
@@ -69,7 +69,7 @@ flowchart LR
 
   DB[(MongoDB)]
   REDIS["Redis<br/>Ephemeral State"]
-  MAIL["Email Providers<br/>Resend + SMTP"]
+  MAIL["Email Providers<br/>SendGrid + SMTP"]
   SFU["LiveKit SFU"]
   TURN["STUN/TURN"]
 
@@ -137,7 +137,7 @@ sequenceDiagram
 - Backend: Node.js, Express, Socket.IO, Mongoose, Redis, LiveKit Server SDK
 - Auth: JWT cookies, Google OAuth via Passport
 - Realtime: WebRTC, STUN and TURN (Metered compatible)
-- Email: Resend for scheduling reminders, SMTP for direct invites
+- Email: SendGrid for scheduling reminders, SMTP for direct invites
 - Whiteboard: Excalidraw
 
 ---
@@ -189,7 +189,7 @@ ConvoX/
 | LIVEKIT_API_KEY | Yes | LiveKit API key | devkey |
 | LIVEKIT_API_SECRET | Yes | LiveKit API secret | secret |
 | LIVEKIT_WS_URL | Yes | LiveKit websocket URL | ws://localhost:7880 |
-| RESEND_API_KEY | Yes | Email provider for reminders | re_123456 |
+| SENDGRID_API_KEY | Yes | Email provider for reminders | SG.123456 |
 | APP_URL | Yes | Frontend base URL | http://localhost:5173 |
 | GOOGLE_CLIENT_ID | Optional | Google OAuth client id | your_client_id |
 | GOOGLE_CLIENT_SECRET | Optional | Google OAuth client secret | your_client_secret |
