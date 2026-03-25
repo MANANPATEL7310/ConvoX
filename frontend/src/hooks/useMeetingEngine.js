@@ -335,8 +335,7 @@ export function useMeetingEngine(localVideoRef) {
     if (videoTracks.length > 0 && videoTracks[0].readyState === 'live') {
       const track = videoTracks[0];
       const enabled = !track.enabled;
-      track.enabled = enabled;
-      if (!enabled) track.stop();
+      track.enabled = enabled; // Do NOT call track.stop() — it permanently kills the track and can break audio too
       setVideoEnabled(enabled);
       emitMediaState(audioEnabledRef.current, enabled);
     } else {
@@ -365,8 +364,7 @@ export function useMeetingEngine(localVideoRef) {
     if (audioTracks.length > 0 && audioTracks[0].readyState === 'live') {
       const track = audioTracks[0];
       const enabled = !track.enabled;
-      track.enabled = enabled;
-      if (!enabled) track.stop();
+      track.enabled = enabled; // Do NOT call track.stop() — it permanently kills the track and can break video too
       setAudioEnabled(enabled);
       emitMediaState(enabled, videoEnabledRef.current);
     } else {
@@ -588,8 +586,12 @@ export function useMeetingEngine(localVideoRef) {
       }
       localStreamRef.current = s;
       if (localVideoRef.current) localVideoRef.current.srcObject = s;
-      s.getVideoTracks().forEach(t => { t.enabled = v; if (!v) t.stop(); });
-      s.getAudioTracks().forEach(t => { t.enabled = a; if (!a) t.stop(); });
+      // Only toggle enabled — do NOT call track.stop() here.
+      // Stopping a track permanently kills it; the user would be unable to re-enable
+      // video or audio during the meeting. track.enabled = false is sufficient to
+      // start in a "camera off / muted" state while keeping the track alive.
+      s.getVideoTracks().forEach(t => { t.enabled = v; });
+      s.getAudioTracks().forEach(t => { t.enabled = a; });
       setVideoEnabled(v);
       setAudioEnabled(a);
       setVideoQuality(qualityKey);
