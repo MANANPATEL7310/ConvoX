@@ -203,11 +203,14 @@ export function useMeetingEngine(localVideoRef) {
     const scale = computeAdaptiveScale();
     pc.getSenders().forEach((sender) => {
       if (!sender.track || sender.track.kind !== 'video') return;
+      
+      const isScreenShare = screenStreamRef.current && sender.track === screenStreamRef.current.getVideoTracks()[0];
+      
       const params = sender.getParameters();
-      params.degradationPreference = 'balanced';
+      params.degradationPreference = isScreenShare ? 'maintain-resolution' : 'balanced';
       params.encodings = params.encodings && params.encodings.length ? params.encodings : [{}];
-      params.encodings[0].maxBitrate = preset.maxBitrate;
-      params.encodings[0].scaleResolutionDownBy = scale;
+      params.encodings[0].maxBitrate = isScreenShare ? 2_500_000 : preset.maxBitrate;
+      params.encodings[0].scaleResolutionDownBy = isScreenShare ? 1 : scale;
       sender.setParameters(params).catch(() => {});
     });
   }, [computeAdaptiveScale]);
@@ -268,10 +271,13 @@ export function useMeetingEngine(localVideoRef) {
       screenStreamRef.current = screenStream;
       cameraStreamRef.current = localStreamRef.current;
       const screenVideoTrack = screenStream.getVideoTracks()[0];
-      Object.values(peersRef.current).forEach(pc => {
+      Object.values(peersRef.current).forEach(async pc => {
         if (pc.signalingState === 'closed') return;
         const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (videoSender) videoSender.replaceTrack(screenVideoTrack);
+        if (videoSender) {
+          await videoSender.replaceTrack(screenVideoTrack);
+          applyEncodingToPeer(pc, videoQualityRef.current);
+        }
       });
       screenVideoTrack.onended = () => stopScreenShare();
       setScreenSharing(true);
@@ -292,10 +298,13 @@ export function useMeetingEngine(localVideoRef) {
     screenStreamRef.current = null;
     const cameraVideoTrack = cameraStream.getVideoTracks()[0];
     if (cameraVideoTrack) {
-      Object.values(peersRef.current).forEach(pc => {
+      Object.values(peersRef.current).forEach(async pc => {
         if (pc.signalingState === 'closed') return;
         const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (videoSender) videoSender.replaceTrack(cameraVideoTrack);
+        if (videoSender) {
+          await videoSender.replaceTrack(cameraVideoTrack);
+          applyEncodingToPeer(pc, videoQualityRef.current);
+        }
       });
     }
     localStreamRef.current = cameraStream;
@@ -722,7 +731,15 @@ export function useMeetingEngine(localVideoRef) {
             const pc = createPeerConnRef.current(clientId);
             await getLocalMediaRef.current();
             const stream = localStreamRef.current;
-            if (stream) stream.getTracks().forEach(track => { if (!pc.getSenders().find(s => s.track === track)) pc.addTrack(track, stream); });
+            if (stream) {
+              stream.getTracks().forEach(track => {
+                let trackToAdd = track;
+                if (track.kind === 'video' && screenStreamRef.current) {
+                  trackToAdd = screenStreamRef.current.getVideoTracks()[0] || track;
+                }
+                if (!pc.getSenders().find(s => s.track === trackToAdd)) pc.addTrack(trackToAdd, stream);
+              });
+            }
             applyEncodingRef.current?.(pc, videoQualityRef.current);
             if (socket.id < clientId) {
               const offer = await pc.createOffer();
@@ -746,7 +763,15 @@ export function useMeetingEngine(localVideoRef) {
               if (pc.iceCandidatesQueue?.length) { for (const c of pc.iceCandidatesQueue) await pc.addIceCandidate(c); pc.iceCandidatesQueue = []; }
               await getLocalMediaRef.current();
               const stream = localStreamRef.current;
-              if (stream) stream.getTracks().forEach(track => { if (!pc.getSenders().find(s => s.track === track)) pc.addTrack(track, stream); });
+              if (stream) {
+                stream.getTracks().forEach(track => {
+                  let trackToAdd = track;
+                  if (track.kind === 'video' && screenStreamRef.current) {
+                    trackToAdd = screenStreamRef.current.getVideoTracks()[0] || track;
+                  }
+                  if (!pc.getSenders().find(s => s.track === trackToAdd)) pc.addTrack(trackToAdd, stream);
+                });
+              }
               applyEncodingRef.current?.(pc, videoQualityRef.current);
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
